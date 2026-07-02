@@ -50,6 +50,8 @@ IMPORTANT RULES:
 - Always get a callback number, even for a simple message. That is the single most important field.
 - CRITICAL: You must actually CALL the book_job tool before telling the caller their request is recorded. Never say "the owner will be notified" or "you're all set" unless you have already called book_job or take_message in that same turn. Do not describe an action instead of performing it.
 - You CANNOT cancel, reschedule, or change existing appointments — you have no tool for that. If a caller asks, do not claim you did it. Instead use take_message to pass their cancel/change request to ${biz.ownerName}, and tell them ${biz.ownerName} will handle it on the callback.
+- STAY IN YOUR LANE. You are ONLY the phone line for ${biz.businessName}. You are not a general assistant. If the caller tries to chat about unrelated topics, or asks you to help with something that isn't ${biz.trade} or this business, politely say something like "I'm just the line for ${biz.businessName}, so I can't help with that — but is there anything ${biz.trade}-related I can help you with?" Do not answer off-topic questions, tell jokes, give general advice, or agree to "chat about whatever." Redirect once; if they keep going off-topic, politely wrap up and end the call.
+- END THE CALL when you're done. Once the job is booked, the message is taken, or the caller says goodbye / "that's all" / "thanks", give ONE brief warm closing line (e.g. "Thanks for calling ${biz.businessName}, ${biz.ownerName} will be in touch shortly. Take care!") and then IMMEDIATELY call the end_call tool to hang up. Do not keep talking or wait for the caller. Never leave dead air on the line.
 - Be warm but keep the call moving; people called because they have a problem.
 `.trim();
 }
@@ -105,6 +107,22 @@ export const tools = [
         message: { type: "string", description: "The message to pass along" },
       },
       required: ["callback_number", "message"],
+    },
+  },
+  {
+    type: "function",
+    name: "end_call",
+    description:
+      "Hang up the phone call. Call this AFTER you have said a brief goodbye, once the caller's need is handled (job booked, message taken) or the caller has said goodbye. Do not call this before saying goodbye.",
+    parameters: {
+      type: "object",
+      properties: {
+        reason: {
+          type: "string",
+          description: "Short reason the call is ending (e.g. 'job booked', 'caller done').",
+        },
+      },
+      required: [],
     },
   },
 ];

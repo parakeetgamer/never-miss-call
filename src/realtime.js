@@ -1,21 +1,25 @@
 // realtime.js
 // Bridges ONE phone call: Twilio Media Stream (G.711 μ-law, 8kHz) <-> OpenAI
 // Realtime API (speech-to-speech). Handles audio in both directions, barge-in
-// interruptions, and function/tool calls (book_job / take_message).
-//
-// Notes on the API:
-//  - Twilio media payloads are base64 G.711 μ-law @ 8kHz. The Realtime API can
-//    consume and produce that exact format, so NO transcoding is needed.
-//  - The GA model (gpt-realtime-2) uses a nested session.audio.* config and
-//    renamed some server events vs the older beta. We support both via
-//    REALTIME_API_MODE and by listening for both event names defensively.
+// interruptions, and function/tool calls (book_job / take_message / end_call).
 
 import WebSocket from "ws";
+import twilio from "twilio";
 import { buildInstructions, tools } from "./agent.js";
 import { saveLead } from "./db.js";
 import { notifyOwner } from "./sms.js";
 
 const OPENAI_REALTIME_URL = "wss://api.openai.com/v1/realtime";
+
+// How long to wait after the model asks to end the call before actually
+// hanging up — gives the goodbye audio time to finish playing to the caller.
+const HANGUP_GRACE_MS = 3000;
+
+// Twilio REST client (for definitively hanging up a call by its SID).
+const twilioRest =
+  process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN
+    ? twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN)
+    : null;
 
 /**
  * Build the session.update payload for the chosen API mode.
@@ -24,7 +28,6 @@ function buildSessionUpdate(biz, { mode, voice }) {
   const instructions = buildInstructions(biz);
 
   if (mode === "beta") {
-    // Older beta schema (flat audio format fields).
     return {
       type: "session.update",
       session: {
@@ -40,9 +43,6 @@ function buildSessionUpdate(biz, { mode, voice }) {
     };
   }
 
-  // GA schema (nested audio config). G.711 μ-law is "audio/pcmu".
-  // If your account rejects "audio/pcmu", check the current Realtime docs for
-  // the accepted format type and update the two "type" values below.
   return {
     type: "session.update",
     session: {
@@ -67,23 +67,18 @@ function buildSessionUpdate(biz, { mode, voice }) {
 
 /**
  * Start the bridge for a single call.
- *
- * @param {WebSocket} twilioWs - the connected Twilio media-stream socket
- * @param {object} biz - business config
- * @param {object} env - { model, mode, voice, apiKey }
  */
 export function startCallBridge(twilioWs, biz, env) {
   let streamSid = null;
   let callSid = null;
   let callerNumber = null;
   let openAiReady = false;
-  const audioQueue = []; // hold caller audio until OpenAI session is configured
+  const audioQueue = [];
 
   const openAi = new WebSocket(
     `${OPENAI_REALTIME_URL}?model=${encodeURIComponent(env.model)}`,
     {
       headers: { Authorization: `Bearer ${env.apiKey}` },
-      // GA rejects the OpenAI-Beta header; beta requires it.
       ...(env.mode === "beta"
         ? { headers: { Authorization: `Bearer ${env.apiKey}`, "OpenAI-Beta": "realtime=v1" } }
         : {}),
@@ -107,18 +102,14 @@ export function startCallBridge(twilioWs, biz, env) {
       case "session.updated":
       case "session.created":
         openAiReady = true;
-        // flush any caller audio buffered before the session was ready
         while (audioQueue.length) {
           openAi.send(
             JSON.stringify({ type: "input_audio_buffer.append", audio: audioQueue.shift() })
           );
         }
-        // Prompt the model to greet first so the caller isn't met with silence.
         openAi.send(JSON.stringify({ type: "response.create" }));
         break;
 
-      // Audio coming back from the model — GA uses response.output_audio.delta,
-      // beta used response.audio.delta. Handle both.
       case "response.output_audio.delta":
       case "response.audio.delta": {
         if (streamSid && evt.delta) {
@@ -133,7 +124,6 @@ export function startCallBridge(twilioWs, biz, env) {
         break;
       }
 
-      // Caller started talking — barge in: stop Twilio playback immediately.
       case "input_audio_buffer.speech_started": {
         if (streamSid) {
           twilioWs.send(JSON.stringify({ event: "clear", streamSid }));
@@ -141,7 +131,6 @@ export function startCallBridge(twilioWs, biz, env) {
         break;
       }
 
-      // The model wants to call one of our tools.
       case "response.function_call_arguments.done": {
         await handleToolCall(evt);
         break;
@@ -152,8 +141,6 @@ export function startCallBridge(twilioWs, biz, env) {
         break;
 
       default:
-        // Uncomment for deep debugging:
-        // console.log("[openai evt]", evt.type);
         break;
     }
   });
@@ -172,6 +159,24 @@ export function startCallBridge(twilioWs, biz, env) {
     } catch {
       args = {};
     }
+
+    // end_call: acknowledge, let the goodbye play, then hang up the phone.
+    if (evt.name === "end_call") {
+      openAi.send(
+        JSON.stringify({
+          type: "conversation.item.create",
+          item: {
+            type: "function_call_output",
+            call_id: evt.call_id,
+            output: JSON.stringify({ ok: true }),
+          },
+        })
+      );
+      console.log(`[call] end_call requested (${args.reason || "no reason"}) — hanging up shortly`);
+      setTimeout(() => hangUp(), HANGUP_GRACE_MS);
+      return;
+    }
+
     const type = evt.name === "book_job" ? "job" : "message";
     const lead = saveLead({
       type,
@@ -181,7 +186,6 @@ export function startCallBridge(twilioWs, biz, env) {
     });
     await notifyOwner(biz, lead);
 
-    // Tell the model the tool succeeded, then let it respond to the caller.
     openAi.send(
       JSON.stringify({
         type: "conversation.item.create",
@@ -225,7 +229,7 @@ export function startCallBridge(twilioWs, biz, env) {
             JSON.stringify({ type: "input_audio_buffer.append", audio: payload })
           );
         } else {
-          audioQueue.push(payload); // buffer until session is ready
+          audioQueue.push(payload);
         }
         break;
       }
@@ -245,6 +249,19 @@ export function startCallBridge(twilioWs, biz, env) {
     console.error("[twilio] socket error:", e.message);
     closeAll();
   });
+
+  // Definitively end the phone call, then tear down the sockets.
+  async function hangUp() {
+    if (twilioRest && callSid) {
+      try {
+        await twilioRest.calls(callSid).update({ status: "completed" });
+        console.log(`[call] hung up ${callSid}`);
+      } catch (e) {
+        console.error("[call] REST hangup failed:", e.message);
+      }
+    }
+    closeAll();
+  }
 
   let closed = false;
   function closeAll() {
