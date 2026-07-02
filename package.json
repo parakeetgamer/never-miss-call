@@ -1,0 +1,22 @@
+{
+  "name": "never-miss-call",
+  "version": "0.1.0",
+  "description": "AI phone receptionist for tradespeople — answers calls, books jobs, texts the owner, logs leads.",
+  "type": "module",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node --watch src/server.js",
+    "simulate": "node simulate.js",
+    "simulate:mock": "node simulate.js --mock"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "twilio": "^5.4.0",
+    "ws": "^8.18.0"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

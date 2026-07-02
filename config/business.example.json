@@ -1,0 +1,32 @@
+{
+  "businessName": "Rivera Plumbing",
+  "trade": "plumbing",
+  "ownerName": "Mike",
+  "ownerCell": "+1XXXXXXXXXX",
+  "city": "Vancouver, WA",
+  "serviceArea": "Vancouver, Camas, Washougal, and Battle Ground",
+  "hours": "Monday to Friday, 7am to 5pm",
+  "emergencyAvailable": true,
+  "services": [
+    "leak repair",
+    "water heater repair and replacement",
+    "drain cleaning and clogs",
+    "toilet and faucet repair",
+    "sump pumps",
+    "repipes",
+    "garbage disposals"
+  ],
+  "doesNotDo": [
+    "septic tank pumping",
+    "well drilling"
+  ],
+  "bookingQuestions": [
+    "the customer's full name",
+    "the best callback phone number",
+    "the service address",
+    "a short description of the problem",
+    "whether it's an emergency or can wait for a scheduled visit"
+  ],
+  "greeting": "Thanks for calling Rivera Plumbing, this is the assistant. How can I help you today?",
+  "tone": "friendly, calm, and efficient — like a helpful office manager who has done this for years"
+}
