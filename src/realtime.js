@@ -73,7 +73,23 @@ export function startCallBridge(twilioWs, biz, env) {
   let callSid = null;
   let callerNumber = null;
   let openAiReady = false;
+  let greeted = false;          // ensure we greet only once
+  let responseActive = false;   // is a model response currently being generated?
+  let pendingResponse = false;  // a response was requested while one was active
   const audioQueue = [];
+
+  // Ask the model to speak — but only if it isn't already speaking. If a
+  // response is in flight, remember to trigger one as soon as it finishes.
+  // This prevents the "conversation_already_has_active_response" error that
+  // wedges the call.
+  function requestResponse() {
+    if (responseActive) {
+      pendingResponse = true;
+    } else {
+      responseActive = true;
+      openAi.send(JSON.stringify({ type: "response.create" }));
+    }
+  }
 
   const openAi = new WebSocket(
     `${OPENAI_REALTIME_URL}?model=${encodeURIComponent(env.model)}`,
@@ -107,7 +123,22 @@ export function startCallBridge(twilioWs, biz, env) {
             JSON.stringify({ type: "input_audio_buffer.append", audio: audioQueue.shift() })
           );
         }
-        openAi.send(JSON.stringify({ type: "response.create" }));
+        if (!greeted) {
+          greeted = true;
+          requestResponse(); // kick off the greeting exactly once
+        }
+        break;
+
+      // Track when the model is/ isn't actively generating a response.
+      case "response.created":
+        responseActive = true;
+        break;
+      case "response.done":
+        responseActive = false;
+        if (pendingResponse) {
+          pendingResponse = false;
+          requestResponse(); // fire the response that was waiting
+        }
         break;
 
       case "response.output_audio.delta":
@@ -200,7 +231,7 @@ export function startCallBridge(twilioWs, biz, env) {
         },
       })
     );
-    openAi.send(JSON.stringify({ type: "response.create" }));
+    requestResponse();
   }
 
   // ---- Twilio -> us ----
