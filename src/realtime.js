@@ -76,6 +76,7 @@ export function startCallBridge(twilioWs, biz, env) {
   let greeted = false;          // ensure we greet only once
   let responseActive = false;   // is a model response currently being generated?
   let pendingResponse = false;  // a response was requested while one was active
+  let leadBooked = false;       // has a job/message been saved this call yet?
   const audioQueue = [];
 
   // Ask the model to speak — but only if it isn't already speaking. If a
@@ -190,9 +191,33 @@ export function startCallBridge(twilioWs, biz, env) {
     } catch {
       args = {};
     }
+    console.log(`[call] tool: ${evt.name} ${JSON.stringify(args)}`);
 
-    // end_call: acknowledge, let the goodbye play, then hang up the phone.
+    // end_call: only allow it once we've actually captured a lead, OR it's a
+    // genuine emergency where we told them to call 911. Otherwise REFUSE to
+    // hang up — this is the hard guard against dropping a caller mid-intake.
     if (evt.name === "end_call") {
+      const reason = (args.reason || "").toLowerCase();
+      const isEmergency = /911|emergency|fire|gas|safety|hurt|injur/.test(reason);
+      if (!leadBooked && !isEmergency) {
+        console.log(`[call] end_call BLOCKED — no lead booked yet, keeping caller on the line`);
+        openAi.send(
+          JSON.stringify({
+            type: "conversation.item.create",
+            item: {
+              type: "function_call_output",
+              call_id: evt.call_id,
+              output: JSON.stringify({
+                ok: false,
+                error:
+                  "Do NOT hang up yet — you haven't saved the caller's request. Keep helping them: get their name, callback number, and problem, then call book_job. Only end the call after the job is booked and you've said goodbye.",
+              }),
+            },
+          })
+        );
+        requestResponse();
+        return;
+      }
       openAi.send(
         JSON.stringify({
           type: "conversation.item.create",
@@ -203,19 +228,27 @@ export function startCallBridge(twilioWs, biz, env) {
           },
         })
       );
-      console.log(`[call] end_call requested (${args.reason || "no reason"}) — hanging up shortly`);
+      console.log(`[call] end_call allowed (${args.reason || "no reason"}) — hanging up shortly`);
       setTimeout(() => hangUp(), HANGUP_GRACE_MS);
       return;
     }
 
+    // book_job / take_message — save the lead. Wrapped so a storage/SMS hiccup
+    // can never crash the call.
     const type = evt.name === "book_job" ? "job" : "message";
-    const lead = saveLead({
-      type,
-      ...args,
-      call_sid: callSid,
-      caller_number: callerNumber,
-    });
-    await notifyOwner(biz, lead);
+    let lead = null;
+    try {
+      lead = saveLead({
+        type,
+        ...args,
+        call_sid: callSid,
+        caller_number: callerNumber,
+      });
+      leadBooked = true;
+      await notifyOwner(biz, lead);
+    } catch (e) {
+      console.error("[call] saveLead/notify failed:", e.message);
+    }
 
     openAi.send(
       JSON.stringify({
@@ -225,7 +258,7 @@ export function startCallBridge(twilioWs, biz, env) {
           call_id: evt.call_id,
           output: JSON.stringify({
             ok: true,
-            saved_id: lead.id,
+            saved_id: lead ? lead.id : null,
             confirmation: "Saved. The owner has been texted and will call back.",
           }),
         },
