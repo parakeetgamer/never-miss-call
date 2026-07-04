@@ -77,7 +77,16 @@ export function startCallBridge(twilioWs, biz, env) {
   let responseActive = false;   // is a model response currently being generated?
   let pendingResponse = false;  // a response was requested while one was active
   let leadBooked = false;       // has a job/message been saved this call yet?
+  let haveName = false;         // captured caller's name?
+  let haveNumber = false;       // captured callback number?
+  let haveSituation = false;    // captured the problem/reason?
   const audioQueue = [];
+
+  // Treat blanks and filler like "Unknown" / "N/A" as NOT captured.
+  const present = (v) =>
+    v != null &&
+    String(v).trim().length > 0 &&
+    !/^(unknown|n\/?a|none|not provided|no name( given)?|tbd)$/i.test(String(v).trim());
 
   // Ask the model to speak — but only if it isn't already speaking. If a
   // response is in flight, remember to trigger one as soon as it finishes.
@@ -208,14 +217,21 @@ export function startCallBridge(twilioWs, biz, env) {
     }
     console.log(`[call] tool: ${evt.name} ${JSON.stringify(args)}`);
 
-    // end_call: only allow it once we've actually captured a lead, OR it's a
-    // genuine emergency where we told them to call 911. Otherwise REFUSE to
-    // hang up — this is the hard guard against dropping a caller mid-intake.
+    // end_call: only allow it once we have the caller's NAME, NUMBER, and
+    // SITUATION (or it's a genuine 911 emergency). Otherwise REFUSE to hang up
+    // and tell the model exactly what's still missing. This is the hard guard
+    // against dropping a caller before we've captured a usable lead.
     if (evt.name === "end_call") {
       const reason = (args.reason || "").toLowerCase();
       const isEmergency = /911|emergency|fire|gas|safety|hurt|injur/.test(reason);
-      if (!leadBooked && !isEmergency) {
-        console.log(`[call] end_call BLOCKED — no lead booked yet, keeping caller on the line`);
+      const ready = haveName && haveNumber && haveSituation;
+      if (!ready && !isEmergency) {
+        const missing = [
+          !haveName ? "the caller's name" : null,
+          !haveNumber ? "a callback number" : null,
+          !haveSituation ? "a description of their situation" : null,
+        ].filter(Boolean).join(", ");
+        console.log(`[call] end_call BLOCKED — still missing: ${missing}`);
         openAi.send(
           JSON.stringify({
             type: "conversation.item.create",
@@ -225,7 +241,7 @@ export function startCallBridge(twilioWs, biz, env) {
               output: JSON.stringify({
                 ok: false,
                 error:
-                  "Do NOT hang up yet — you haven't saved the caller's request. Keep helping them: get their name, callback number, and problem, then call book_job. Only end the call after the job is booked and you've said goodbye.",
+                  `Do NOT hang up yet. You still need: ${missing}. Stay on the line, warmly ask the caller for the missing details, then call book_job. Only end the call once you have their name, number, and situation.`,
               }),
             },
           })
@@ -251,6 +267,9 @@ export function startCallBridge(twilioWs, biz, env) {
     // book_job / take_message — save the lead. Wrapped so a storage/SMS hiccup
     // can never crash the call.
     const type = evt.name === "book_job" ? "job" : "message";
+    if (present(args.customer_name)) haveName = true;
+    if (present(args.callback_number)) haveNumber = true;
+    if (present(args.problem) || present(args.message)) haveSituation = true;
     let lead = null;
     try {
       lead = saveLead({
