@@ -119,22 +119,29 @@ export function startCallBridge(twilioWs, biz, env) {
       case "session.updated":
       case "session.created":
         openAiReady = true;
-        while (audioQueue.length) {
-          openAi.send(
-            JSON.stringify({ type: "input_audio_buffer.append", audio: audioQueue.shift() })
-          );
-        }
+        // Greet FIRST, before processing any caller audio. If we flushed queued
+        // audio first, the initial line noise could trip voice-detection into
+        // auto-starting a response, which then collides with the greeting and
+        // wedges the call. Greeting first avoids that race entirely.
         if (!greeted) {
           greeted = true;
-          requestResponse(); // kick off the greeting exactly once
+          audioQueue.length = 0; // drop pre-greeting noise from the pickup moment
+          requestResponse();     // kick off the greeting exactly once
+        } else {
+          while (audioQueue.length) {
+            openAi.send(
+              JSON.stringify({ type: "input_audio_buffer.append", audio: audioQueue.shift() })
+            );
+          }
         }
         break;
 
-      // Track when the model is/ isn't actively generating a response.
+      // Track when the model is / isn't actively generating a response.
       case "response.created":
         responseActive = true;
         break;
       case "response.done":
+      case "response.cancelled":
         responseActive = false;
         if (pendingResponse) {
           pendingResponse = false;
@@ -169,7 +176,15 @@ export function startCallBridge(twilioWs, biz, env) {
       }
 
       case "error":
-        console.error("[openai] error:", JSON.stringify(evt.error || evt));
+        // Self-heal the startup race: if we ever try to start a response while
+        // one is already active, don't crash — just mark ourselves busy so the
+        // already-active response plays out and the call keeps going.
+        if (evt.error?.code === "conversation_already_has_active_response") {
+          responseActive = true;
+          console.log("[openai] recovered from response collision (harmless)");
+        } else {
+          console.error("[openai] error:", JSON.stringify(evt.error || evt));
+        }
         break;
 
       default:
