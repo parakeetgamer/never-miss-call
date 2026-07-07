@@ -68,9 +68,11 @@ function buildSessionUpdate(biz, { mode, voice }) {
           format: { type: "audio/pcmu" },
           // semantic_vad waits for the caller to actually finish a thought
           // instead of a fixed silence timer, so it stops cutting people off
-          // mid-sentence. "low" eagerness = give the caller more benefit of
-          // the doubt before deciding they're done.
-          turn_detection: { type: "semantic_vad", eagerness: "low", interrupt_response: true },
+          // mid-sentence. Eagerness sets the MAX wait before deciding they're
+          // done: low=8s, medium=4s, high=2s. "low" left painful dead air
+          // after short answers like a bare name, so "medium" — barge-in
+          // handling (cancel+truncate) covers us if it ever jumps in early.
+          turn_detection: { type: "semantic_vad", eagerness: "medium", interrupt_response: true },
         },
         output: {
           format: { type: "audio/pcmu" },
