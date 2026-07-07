@@ -62,7 +62,7 @@ function buildSessionUpdate(biz, { mode, voice }) {
       // stop short and hand the turn back to the caller. Generous enough to
       // never clip a normal reply or a tool call's arguments; only kicks in
       // on a genuine multi-question run-on.
-      max_response_output_tokens: 600,
+      max_output_tokens: 600,
       audio: {
         input: {
           format: { type: "audio/pcmu" },
