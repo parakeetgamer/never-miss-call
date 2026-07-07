@@ -39,6 +39,12 @@ function buildSessionUpdate(biz, { mode, voice }) {
         // Longer pause tolerance so mid-sentence gaps (reading off a phone
         // number, thinking of an address) don't get mistaken for "done talking".
         turn_detection: { type: "server_vad", silence_duration_ms: 700, interrupt_response: true },
+        // Hard cap so the model physically cannot chain several questions (or
+        // a whole mini-script) into one uninterrupted turn — it's forced to
+        // stop short and hand the turn back to the caller. Generous enough to
+        // never clip a normal reply or a tool call's arguments; only kicks in
+        // on a genuine multi-question run-on.
+        max_response_output_tokens: 600,
         tools,
         tool_choice: "auto",
       },
@@ -51,6 +57,12 @@ function buildSessionUpdate(biz, { mode, voice }) {
       type: "realtime",
       output_modalities: ["audio"],
       instructions,
+      // Hard cap so the model physically cannot chain several questions (or
+      // a whole mini-script) into one uninterrupted turn — it's forced to
+      // stop short and hand the turn back to the caller. Generous enough to
+      // never clip a normal reply or a tool call's arguments; only kicks in
+      // on a genuine multi-question run-on.
+      max_response_output_tokens: 600,
       audio: {
         input: {
           format: { type: "audio/pcmu" },
