@@ -146,8 +146,19 @@ export function startCallBridge(twilioWs, biz, env) {
     }
 
     switch (evt.type) {
-      case "session.updated":
       case "session.created":
+        // The session exists but OUR config (μ-law audio, VAD, tools) has not
+        // been confirmed yet. Do NOT greet or forward audio here: speaking now
+        // would use the default 24kHz PCM format, which comes out of the phone
+        // as pure static. Wait for session.updated below.
+        break;
+
+      case "session.updated": {
+        const outFmt =
+          evt.session?.audio?.output?.format?.type || // GA shape
+          evt.session?.output_audio_format ||          // beta shape
+          "unknown";
+        console.log(`[openai] session config confirmed (output format: ${outFmt})`);
         openAiReady = true;
         // Greet FIRST, before processing any caller audio. If we flushed queued
         // audio first, the initial line noise could trip voice-detection into
@@ -165,6 +176,7 @@ export function startCallBridge(twilioWs, biz, env) {
           }
         }
         break;
+      }
 
       // Track when the model is / isn't actively generating a response.
       case "response.created":
@@ -255,6 +267,16 @@ export function startCallBridge(twilioWs, biz, env) {
           console.log("[openai] recovered from response collision (harmless)");
         } else if (evt.error?.code === "response_cancel_not_active") {
           console.log("[openai] recovered from redundant cancel (harmless)");
+        } else if (String(evt.error?.param || "").startsWith("session.")) {
+          // Our session.update was REJECTED. The session is stuck on default
+          // 24kHz PCM audio — any speech now reaches the phone as static, and
+          // since we only greet after session.updated, the call will be silent.
+          // Either way the call is unusable; make the cause impossible to miss.
+          console.error(
+            "[openai] *** SESSION CONFIG REJECTED — call audio will NOT work ***\n" +
+              `[openai] *** ${JSON.stringify(evt.error)}\n` +
+              "[openai] *** Fix the session.update payload in buildSessionUpdate(), or flip REALTIME_API_MODE (ga|beta)."
+          );
         } else {
           console.error("[openai] error:", JSON.stringify(evt.error || evt));
         }

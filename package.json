@@ -8,7 +8,8 @@
     "start": "node src/server.js",
     "dev": "node --watch src/server.js",
     "simulate": "node simulate.js",
-    "simulate:mock": "node simulate.js --mock"
+    "simulate:mock": "node simulate.js --mock",
+    "test:call": "node e2e_fake_call.mjs"
   },
   "dependencies": {
     "dotenv": "^16.4.7",
