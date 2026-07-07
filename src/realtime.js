@@ -36,7 +36,9 @@ function buildSessionUpdate(biz, { mode, voice }) {
         voice,
         input_audio_format: "g711_ulaw",
         output_audio_format: "g711_ulaw",
-        turn_detection: { type: "server_vad", silence_duration_ms: 600 },
+        // Longer pause tolerance so mid-sentence gaps (reading off a phone
+        // number, thinking of an address) don't get mistaken for "done talking".
+        turn_detection: { type: "server_vad", silence_duration_ms: 700, interrupt_response: true },
         tools,
         tool_choice: "auto",
       },
@@ -52,7 +54,11 @@ function buildSessionUpdate(biz, { mode, voice }) {
       audio: {
         input: {
           format: { type: "audio/pcmu" },
-          turn_detection: { type: "server_vad", silence_duration_ms: 600 },
+          // semantic_vad waits for the caller to actually finish a thought
+          // instead of a fixed silence timer, so it stops cutting people off
+          // mid-sentence. "low" eagerness = give the caller more benefit of
+          // the doubt before deciding they're done.
+          turn_detection: { type: "semantic_vad", eagerness: "low", interrupt_response: true },
         },
         output: {
           format: { type: "audio/pcmu" },
@@ -76,6 +82,9 @@ export function startCallBridge(twilioWs, biz, env) {
   let greeted = false;          // ensure we greet only once
   let responseActive = false;   // is a model response currently being generated?
   let pendingResponse = false;  // a response was requested while one was active
+  let activeResponseId = null;  // id of the response currently generating/playing
+  let activeItemId = null;      // id of the assistant message item streaming audio
+  let playedAudioMs = 0;        // ms of that item's audio actually sent to the caller
   let leadBooked = false;       // has a job/message been saved this call yet?
   let haveName = false;         // captured caller's name?
   let haveNumber = false;       // captured callback number?
@@ -148,18 +157,33 @@ export function startCallBridge(twilioWs, biz, env) {
       // Track when the model is / isn't actively generating a response.
       case "response.created":
         responseActive = true;
+        activeResponseId = evt.response?.id || null;
+        activeItemId = null;
+        playedAudioMs = 0;
         break;
       case "response.done":
       case "response.cancelled":
         responseActive = false;
+        activeResponseId = null;
+        activeItemId = null;
+        playedAudioMs = 0;
         if (pendingResponse) {
           pendingResponse = false;
           requestResponse(); // fire the response that was waiting
         }
         break;
 
+      // Track which conversation item is currently streaming audio, so a
+      // barge-in can truncate it to what was actually played.
+      case "response.output_item.added":
+        if (evt.item?.id) activeItemId = evt.item.id;
+        break;
+
       case "response.output_audio.delta":
       case "response.audio.delta": {
+        // Ignore stray deltas from a response we already cancelled.
+        if (evt.response_id && activeResponseId && evt.response_id !== activeResponseId) break;
+        if (evt.item_id) activeItemId = evt.item_id;
         if (streamSid && evt.delta) {
           twilioWs.send(
             JSON.stringify({
@@ -168,13 +192,39 @@ export function startCallBridge(twilioWs, biz, env) {
               media: { payload: evt.delta },
             })
           );
+          // g711 u-law @ 8kHz = 8 bytes/ms, so this tracks how much of this
+          // item's audio the caller has actually heard so far.
+          playedAudioMs += Buffer.from(evt.delta, "base64").length / 8;
         }
         break;
       }
 
+      // The caller started talking. Stop the bot mid-sentence: clear whatever
+      // audio Twilio has buffered to play, cancel the in-flight response so
+      // the model stops generating more, and truncate its memory of what it
+      // "said" down to what the caller actually heard. Without the cancel +
+      // truncate, the model keeps talking over the caller and later acts as
+      // if it finished a line (or got an answer) that never actually happened.
       case "input_audio_buffer.speech_started": {
         if (streamSid) {
           twilioWs.send(JSON.stringify({ event: "clear", streamSid }));
+        }
+        if (responseActive && activeResponseId) {
+          openAi.send(JSON.stringify({ type: "response.cancel" }));
+          if (activeItemId) {
+            openAi.send(
+              JSON.stringify({
+                type: "conversation.item.truncate",
+                item_id: activeItemId,
+                content_index: 0,
+                audio_end_ms: Math.max(0, Math.floor(playedAudioMs)),
+              })
+            );
+          }
+          responseActive = false;
+          activeResponseId = null;
+          activeItemId = null;
+          playedAudioMs = 0;
         }
         break;
       }
@@ -191,6 +241,8 @@ export function startCallBridge(twilioWs, biz, env) {
         if (evt.error?.code === "conversation_already_has_active_response") {
           responseActive = true;
           console.log("[openai] recovered from response collision (harmless)");
+        } else if (evt.error?.code === "response_cancel_not_active") {
+          console.log("[openai] recovered from redundant cancel (harmless)");
         } else {
           console.error("[openai] error:", JSON.stringify(evt.error || evt));
         }
