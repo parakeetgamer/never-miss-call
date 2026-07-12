@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Demo Control</title>
+<style>
+  :root{
+    --ink:#14110c; --paper:#f3ede0; --card:#fffdf7; --rule:#d8cdb6;
+    --accent:#b4541f; --accent-deep:#7d3712; --ok:#3f6b3f; --muted:#6f6657;
+    --mono:ui-monospace,"SFMono-Regular",Menlo,monospace;
+    --sans:"Helvetica Neue",Arial,system-ui,sans-serif;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0}
+  body{background:var(--paper);color:var(--ink);font-family:var(--sans);
+    padding:env(safe-area-inset-top) 0 calc(env(safe-area-inset-bottom) + 40px);}
+  header{background:var(--ink);color:var(--paper);padding:14px 18px;
+    box-shadow:0 2px 0 var(--accent-deep);}
+  header h1{margin:0;font-size:16px;letter-spacing:.14em;text-transform:uppercase;font-weight:800}
+  .wrap{max-width:520px;margin:0 auto;padding:18px 16px 0}
+  label{display:block;font-family:var(--mono);font-size:12px;color:var(--muted);
+    text-transform:uppercase;letter-spacing:.08em;margin:14px 0 5px}
+  input{width:100%;padding:13px;font-size:16px;border:1px solid var(--rule);
+    border-radius:4px;background:var(--card);font-family:var(--sans)}
+  button{width:100%;padding:15px;border:0;border-radius:5px;font-weight:800;
+    font-size:16px;letter-spacing:.02em;margin-top:14px;color:var(--paper);background:var(--ink)}
+  button.accent{background:var(--accent)}
+  button:active{transform:translateY(1px)}
+  button:disabled{opacity:.5}
+  .card{background:var(--card);border:1px solid var(--rule);border-left:5px solid var(--accent);
+    border-radius:3px;padding:16px;margin-top:16px}
+  .status{font-family:var(--mono);font-size:13px;margin-top:14px;min-height:20px;line-height:1.5}
+  .ok{color:var(--ok)} .err{color:var(--accent-deep)}
+  .num{font-family:var(--mono);font-size:26px;font-weight:800;letter-spacing:.02em;margin:6px 0}
+  .hint{font-size:13px;color:var(--muted);line-height:1.5;margin-top:6px}
+  .divider{height:1px;background:var(--rule);margin:22px 0}
+  a.call{display:inline-block;margin-top:8px;color:var(--accent-deep);font-weight:700;text-decoration:none}
+</style>
+</head>
+<body>
+<header><h1>Demo Control</h1></header>
+<div class="wrap">
+
+  <div id="login">
+    <label>Password</label>
+    <input id="pw" type="password" placeholder="admin password" autocomplete="current-password"/>
+    <button id="loginBtn">Unlock</button>
+    <div class="status err" id="loginErr"></div>
+  </div>
+
+  <div id="panel" style="display:none">
+    <div class="card">
+      <label>Business name</label>
+      <input id="bizName" placeholder="Dave's Plumbing"/>
+      <label>Owner's name (for the "ask ___" fallback)</label>
+      <input id="ownerName" placeholder="Dave"/>
+      <label>Their website (optional, makes it smarter)</label>
+      <input id="website" placeholder="davesplumbing.com" inputmode="url"/>
+      <label>Trade (optional)</label>
+      <input id="trade" placeholder="plumbing"/>
+      <button id="activate">▶  Activate this demo</button>
+      <div class="status" id="actStatus"></div>
+    </div>
+
+    <div class="card" id="liveCard" style="display:none">
+      <div class="hint">Demo is now answering as:</div>
+      <div class="num" id="liveName" style="font-size:20px"></div>
+      <div class="divider"></div>
+      <div class="hint">Tell them to call this number:</div>
+      <div class="num" id="demoNum"></div>
+      <a class="call" id="callSelf" href="#">📞 Call it yourself to test</a>
+
+      <div class="divider"></div>
+      <label>Text the number to the person you're on a call with</label>
+      <input id="prospectNum" placeholder="+1 360 555 1212" inputmode="tel"/>
+      <button class="accent" id="textBtn">✉️  Text them the demo number</button>
+      <div class="status" id="textStatus"></div>
+    </div>
+
+    <button id="reset" style="background:transparent;color:var(--muted);border:1px solid var(--rule);margin-top:22px">Reset demo to default</button>
+  </div>
+</div>
+
+<script>
+const $ = s => document.querySelector(s);
+let pw = sessionStorage.getItem("adminpw") || "";
+
+function showPanel(){ $("#login").style.display="none"; $("#panel").style.display="block"; }
+async function post(path, body){
+  const r = await fetch(path, {method:"POST", headers:{"Content-Type":"application/json"},
+    body: JSON.stringify({ ...body, pw })});
+  return r.json();
+}
+
+$("#loginBtn").onclick = async () => {
+  pw = $("#pw").value;
+  // verify by hitting reset (harmless) — if unauthorized we'll know
+  const r = await post("/api/demo/reset", {});
+  if (r.ok){ sessionStorage.setItem("adminpw", pw); showPanel(); }
+  else $("#loginErr").textContent = "Wrong password.";
+};
+
+$("#activate").onclick = async () => {
+  const btn = $("#activate"); btn.disabled = true;
+  $("#actStatus").textContent = "Researching + setting up…";
+  $("#actStatus").className = "status";
+  const r = await post("/api/demo/activate", {
+    businessName: $("#bizName").value,
+    ownerName: $("#ownerName").value,
+    website: $("#website").value,
+    trade: $("#trade").value,
+  });
+  btn.disabled = false;
+  if (r.ok){
+    $("#actStatus").className = "status ok";
+    $("#actStatus").textContent = "✓ Live" + (r.foundWebsiteInfo ? " · pulled info from their site" : " · no site info found (still works)");
+    $("#liveName").textContent = r.businessName;
+    $("#demoNum").textContent = r.demoNumber || "(set TWILIO number)";
+    const tel = (r.demoNumber||"").replace(/[^+\d]/g,"");
+    $("#callSelf").href = "tel:" + tel;
+    $("#liveCard").style.display = "block";
+  } else {
+    $("#actStatus").className = "status err";
+    $("#actStatus").textContent = "Error: " + (r.error||"failed");
+  }
+};
+
+$("#textBtn").onclick = async () => {
+  const btn = $("#textBtn"); btn.disabled = true;
+  $("#textStatus").className = "status";
+  $("#textStatus").textContent = "Sending…";
+  const r = await post("/api/demo/text", { toNumber: $("#prospectNum").value });
+  btn.disabled = false;
+  if (r.ok){ $("#textStatus").className="status ok"; $("#textStatus").textContent="✓ Sent! Tell them to check their texts."; }
+  else { $("#textStatus").className="status err"; $("#textStatus").textContent="Error: "+(r.error||"failed"); }
+};
+
+$("#reset").onclick = async () => {
+  await post("/api/demo/reset", {});
+  $("#liveCard").style.display="none";
+  $("#actStatus").textContent="Reset to default demo.";
+  $("#actStatus").className="status";
+};
+
+$("#pw").addEventListener("keydown", e => { if(e.key==="Enter") $("#loginBtn").click(); });
+if (pw) showPanel();
+</script>
+</body>
+</html>

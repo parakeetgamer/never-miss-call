@@ -7,6 +7,11 @@ export function buildInstructions(biz) {
   const services = biz.services.map((s) => `- ${s}`).join("\n");
   const doesNotDoList =
     biz.doesNotDo && biz.doesNotDo.length ? biz.doesNotDo.join(", ") : "(none)";
+  // Optional: raw info pulled from the business's website, injected so the
+  // agent can answer basic questions about the specific business.
+  const websiteBlock = biz.websiteInfo
+    ? `\n\nWHAT WE KNOW ABOUT ${biz.businessName} (from their website — use this to answer questions):\n"""\n${biz.websiteInfo}\n"""\n- If the caller asks something about the business that is NOT covered above, do NOT guess. Say: "I don't have that in front of me — you'll want to ask ${biz.ownerName} about that when they call you back." Then continue.`
+    : "";
   const emergency = biz.emergencyAvailable
     ? `For urgent plumbing problems (e.g., burst pipes, major leaks, flooding, no water), fast-track the contact details, mark the submission as Urgent, and reassure them we will review it immediately.`
     : `We do not handle after-hours emergencies. Collect their information normally for the next business day.`;
@@ -32,7 +37,7 @@ ${services}
 - Services We DO NOT Offer: ${doesNotDoList}
   - Constraint: If a caller asks for these, politely say we don't provide it and don't trigger a booking tool.
 - Service Area: ${biz.serviceArea}
-- Operating Hours: ${biz.hours}
+- Operating Hours: ${biz.hours}${websiteBlock}
 
 3. Call Flow — one step per turn, in this order
 1. Greet (above), then wait.
