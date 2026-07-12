@@ -24,7 +24,7 @@ const defaultBiz = JSON.parse(
   readFileSync(join(__dirname, "..", "config", `${BUSINESS}.json`), "utf8")
 );
 // The business the demo currently answers as. Changed live via /api/demo/activate.
-let activeDemo = defaultBiz;
+let activeDemo = { ...defaultBiz, demoMode: process.env.DEMO_SERVER === "true" };
 
 const env = {
   apiKey: process.env.OPENAI_API_KEY,
@@ -91,6 +91,7 @@ async function buildDemoBiz({ businessName, ownerName, website, trade, city }) {
     greeting: `Thanks for calling ${name}, this is the assistant — how can I help you today?`,
     tone: "warm, friendly, and easygoing",
     websiteInfo,
+    demoMode: true,
   };
 }
 

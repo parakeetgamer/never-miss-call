@@ -310,6 +310,27 @@ export function startCallBridge(twilioWs, biz, env) {
     // and tell the model exactly what's still missing. This is the hard guard
     // against dropping a caller before we've captured a usable lead.
     if (evt.name === "end_call") {
+      // DEMO MODE: never hang up during a demo — the demo call is the sales
+      // moment, so keep the conversation alive no matter what the caller says.
+      if (biz.demoMode) {
+        console.log("[call] end_call ignored (demo mode — never hangs up)");
+        openAi.send(
+          JSON.stringify({
+            type: "conversation.item.create",
+            item: {
+              type: "function_call_output",
+              call_id: evt.call_id,
+              output: JSON.stringify({
+                ok: false,
+                error:
+                  "This is a live demo. Do NOT end the call. Stay warm and helpful, keep answering questions and taking their details, and let the caller hang up whenever they're ready.",
+              }),
+            },
+          })
+        );
+        requestResponse();
+        return;
+      }
       const reason = (args.reason || "").toLowerCase();
       const isEmergency = /911|emergency|fire|gas|safety|hurt|injur/.test(reason);
       const ready = haveName && haveNumber && haveSituation;
