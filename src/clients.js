@@ -69,6 +69,9 @@ export function toBizConfig(client) {
         : ["their name", "the best callback number", "what they need help with", "how urgent it is"],
     greeting: client.greeting,
     tone: client.tone || "warm, friendly, and easygoing",
+    // If we scraped their site during onboarding, the bot answers questions
+    // from it (and uses the "ask the owner" fallback for anything it can't find).
+    websiteInfo: client.websiteInfo || "",
   };
 }
 

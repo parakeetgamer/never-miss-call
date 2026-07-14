@@ -123,6 +123,15 @@
 
       <form id="clientForm">
         <input type="hidden" id="f_id" />
+        <input type="hidden" id="f_websiteInfo" />
+
+        <div class="group" style="border-left:4px solid var(--amber)">
+          <h3>⚡ Autofill from their website</h3>
+          <p class="hint">Paste their site, tap Autofill, and it fills in what it finds — and lets the bot answer questions from their site on live calls. Review before saving.</p>
+          <div class="field"><label>Website</label><input id="f_website" placeholder="davesplumbing.com" inputmode="url"/></div>
+          <button type="button" class="btn-primary" id="autofillBtn" style="width:100%">⚡ Autofill from website</button>
+          <div class="err" id="autofillStatus" style="color:var(--muted)"></div>
+        </div>
 
         <div class="group">
           <h3>The basics</h3>
@@ -209,6 +218,38 @@ function showForm(){ $("#listView").classList.add("hide"); $("#formView").classL
 $("#newBtn").onclick = () => { resetForm(); $("#formTitle").textContent="Add a client"; showForm(); };
 $("#cancelBtn").onclick = showList;
 
+// ---- autofill from website ----
+$("#autofillBtn").onclick = async () => {
+  const website = $("#f_website").value.trim();
+  if(!website){ $("#autofillStatus").textContent = "Enter a website first."; return; }
+  const btn = $("#autofillBtn"); btn.disabled = true;
+  $("#autofillStatus").style.color = "var(--muted)";
+  $("#autofillStatus").textContent = "Reading their site…";
+  try {
+    const r = await api("/clients/api/autofill", {method:"POST", body: JSON.stringify({website})});
+    const data = await r.json();
+    btn.disabled = false;
+    if(!r.ok){ $("#autofillStatus").textContent = "Couldn't read that site — fill it in manually."; return; }
+    if(!data.foundSite){ $("#autofillStatus").textContent = "Site didn't load — fill it in manually (the bot just won't have site info)."; return; }
+    const f = data.fields || {};
+    const set = (id, val) => { if(val && !$(id).value) $(id).value = val; };
+    set("#f_businessName", f.businessName);
+    set("#f_trade", f.trade);
+    set("#f_ownerName", f.ownerName);
+    set("#f_city", f.city);
+    set("#f_serviceArea", f.serviceArea);
+    set("#f_hours", f.hours);
+    if(f.services && f.services.length && !$("#f_services").value) $("#f_services").value = f.services.join("\n");
+    if(f.doesNotDo && f.doesNotDo.length && !$("#f_doesNotDo").value) $("#f_doesNotDo").value = f.doesNotDo.join("\n");
+    $("#f_websiteInfo").value = data.websiteInfo || "";
+    $("#autofillStatus").style.color = "var(--ok)";
+    $("#autofillStatus").textContent = "✓ Filled in what it found + saved site info for the bot. Review, then finish the required fields.";
+  } catch(e){
+    btn.disabled = false;
+    $("#autofillStatus").textContent = "Something went wrong — fill it in manually.";
+  }
+};
+
 // ---- list ----
 async function loadClients(){
   const r = await api("/clients/api/clients");
@@ -239,6 +280,8 @@ window.editClient = async (id) => {
   resetForm();
   $("#formTitle").textContent = "Edit client";
   $("#f_id").value = c.id;
+  $("#f_website").value = c.website||"";
+  $("#f_websiteInfo").value = c.websiteInfo||"";
   $("#f_businessName").value = c.businessName||"";
   $("#f_trade").value = c.trade||"";
   $("#f_ownerName").value = c.ownerName||"";
@@ -265,6 +308,8 @@ window.delClient = async (id, name) => {
 function resetForm(){
   $("#clientForm").reset();
   $("#f_id").value = "";
+  $("#f_websiteInfo").value = "";
+  if($("#autofillStatus")) $("#autofillStatus").textContent = "";
   $("#formErr").textContent = "";
   $("#livePanel").classList.add("hide");
 }
@@ -275,6 +320,8 @@ $("#clientForm").addEventListener("submit", async (e) => {
   $("#saveBtn").disabled = true;
   const payload = {
     id: $("#f_id").value || undefined,
+    website: $("#f_website").value,
+    websiteInfo: $("#f_websiteInfo").value,
     businessName: $("#f_businessName").value,
     trade: $("#f_trade").value,
     ownerName: $("#f_ownerName").value,

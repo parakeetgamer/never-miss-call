@@ -8,6 +8,7 @@ import express from "express";
 import { fileURLToPath } from "url";
 import { dirname, join } from "path";
 import { listClients, getClient, saveClient, removeClient } from "./clients.js";
+import { fetchSiteText, extractBusinessInfo } from "./scrape.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const PASSWORD =
@@ -30,6 +31,23 @@ export function adminRouter() {
   router.post("/clients/api/login", (req, res) => {
     if ((req.body && req.body.pw) !== PASSWORD) return res.status(401).json({ ok: false });
     res.json({ ok: true });
+  });
+
+  // Autofill: fetch a business's site, extract fields, and return the raw site
+  // text so it can be stored on the client (so their bot can answer from it).
+  router.post("/clients/api/autofill", auth, async (req, res) => {
+    const website = String((req.body && req.body.website) || "").trim();
+    if (!website) return res.status(400).json({ error: "no website" });
+    try {
+      const websiteInfo = await fetchSiteText(website);
+      if (!websiteInfo) {
+        return res.json({ ok: true, foundSite: false, fields: {}, websiteInfo: "" });
+      }
+      const fields = await extractBusinessInfo(websiteInfo);
+      res.json({ ok: true, foundSite: true, fields, websiteInfo });
+    } catch (e) {
+      res.status(500).json({ error: e.message });
+    }
   });
 
   router.get("/clients/api/clients", auth, (_req, res) => res.json(listClients()));
@@ -70,6 +88,8 @@ export function adminRouter() {
         greeting:
           (b.greeting || "").trim() ||
           `Thanks for calling ${b.businessName.trim()} — how can I help you today?`,
+        website: (b.website || "").trim(),
+        websiteInfo: typeof b.websiteInfo === "string" ? b.websiteInfo : "",
       });
       res.json({ ok: true, client: record });
     } catch (e) {
