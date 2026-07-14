@@ -43,6 +43,7 @@ const twilioRest =
 const TWILIO_NUMBER = process.env.TWILIO_PHONE_NUMBER || "";
 
 const app = express();
+app.use(adminRouter());
 app.use(express.urlencoded({ extended: false }));
 app.use(express.json());
 
