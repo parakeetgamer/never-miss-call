@@ -1,10 +1,10 @@
-// server.js — web server + live demo control.
-//   POST /incoming-call        -> Twilio webhook; opens the media stream.
-//   WSS  /media-stream          -> Twilio audio <-> OpenAI bridge (answers as the ACTIVE demo).
-//   POST /api/demo/activate     -> set which business the demo answers as (from the admin page).
-//   POST /api/demo/text         -> text the demo number to a prospect you're on a call with.
-//   GET  /admin                 -> mobile control page (activate demo + text number).
-//   GET  / , /api/leads         -> the leads dashboard.
+// server.js — web server + live demo control + multi-tenant client routing.
+//   POST /incoming-call     -> Twilio webhook; opens the media stream (passes dialed number).
+//   WSS  /media-stream       -> Twilio audio <-> OpenAI bridge (answers as the RIGHT business).
+//   POST /api/demo/*         -> live demo control (activate as a business, text the number).
+//   GET  /admin              -> demo control page.
+//   GET  /clients            -> client onboarding panel (add/manage paying clients).
+//   GET  / , /api/leads      -> the leads dashboard.
 
 import "dotenv/config";
 import express from "express";
@@ -15,6 +15,8 @@ import { dirname, join } from "path";
 import twilio from "twilio";
 import { startCallBridge } from "./realtime.js";
 import { listLeads } from "./db.js";
+import { adminRouter } from "./admin.js";
+import { getClientByNumber, toBizConfig } from "./clients.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -43,7 +45,7 @@ const twilioRest =
 const TWILIO_NUMBER = process.env.TWILIO_PHONE_NUMBER || "";
 
 const app = express();
-app.use(adminRouter());
+app.use(adminRouter());               // client onboarding panel at /clients
 app.use(express.urlencoded({ extended: false }));
 app.use(express.json());
 
@@ -59,7 +61,6 @@ async function fetchSiteText(url) {
     clearTimeout(t);
     if (!res.ok) return "";
     let html = await res.text();
-    // strip scripts/styles/tags, collapse whitespace
     html = html.replace(/<script[\s\S]*?<\/script>/gi, " ")
                .replace(/<style[\s\S]*?<\/style>/gi, " ")
                .replace(/<[^>]+>/g, " ")
@@ -67,7 +68,7 @@ async function fetchSiteText(url) {
                .replace(/&amp;/g, "&")
                .replace(/\s+/g, " ")
                .trim();
-    return html.slice(0, 2500); // cap so the prompt stays lean
+    return html.slice(0, 2500);
   } catch {
     return "";
   }
@@ -96,14 +97,16 @@ async function buildDemoBiz({ businessName, ownerName, website, trade, city }) {
   };
 }
 
-// ---- Twilio voice webhook ----
+// ---- Twilio voice webhook: pass the DIALED number so we can route to the right client ----
 app.post("/incoming-call", (req, res) => {
   const from = req.body?.From || "";
+  const to = req.body?.To || "";
   const twiml = `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
   <Connect>
-    <Stream url="wss://${PUBLIC_HOST}/media-stream">
+    <Stream url="wss://${PUBLIC_HOST}/media-stream?to=${encodeURIComponent(to)}">
       <Parameter name="from" value="${from}" />
+      <Parameter name="to" value="${to}" />
     </Stream>
   </Connect>
 </Response>`;
@@ -138,7 +141,7 @@ app.post("/api/demo/activate", async (req, res) => {
 
 app.post("/api/demo/reset", (req, res) => {
   if (!checkAuth(req, res)) return;
-  activeDemo = defaultBiz;
+  activeDemo = { ...defaultBiz, demoMode: process.env.DEMO_SERVER === "true" };
   res.json({ ok: true, businessName: activeDemo.businessName });
 });
 
@@ -175,20 +178,29 @@ app.get("/", (_req, res) => res.sendFile(join(__dirname, "..", "public", "dashbo
 
 // ---- start HTTP + WS ----
 const server = app.listen(PORT, () => {
-  console.log(`\n  Receptionist + demo server on port ${PORT}`);
-  console.log(`  Admin (demo control): http://localhost:${PORT}/admin`);
-  console.log(`  Dashboard: http://localhost:${PORT}/  (password: ${ADMIN_PASSWORD})`);
+  console.log(`\n  Receptionist server on port ${PORT}`);
+  console.log(`  Demo control:      http://localhost:${PORT}/admin`);
+  console.log(`  Client onboarding: http://localhost:${PORT}/clients`);
+  console.log(`  Dashboard:         http://localhost:${PORT}/  (password: ${ADMIN_PASSWORD})`);
   console.log(`  Demo number: ${TWILIO_NUMBER || "(set TWILIO_PHONE_NUMBER)"}`);
   console.log(`  Model: ${env.model}  Mode: ${env.mode}  Voice: ${env.voice}\n`);
 });
 
 const wss = new WebSocketServer({ server, path: "/media-stream" });
-wss.on("connection", (twilioWs) => {
+wss.on("connection", (twilioWs, req) => {
   if (!env.apiKey) {
     console.error("[server] OPENAI_API_KEY missing — cannot bridge call.");
     twilioWs.close();
     return;
   }
-  // Answer as whatever business is currently activated for the demo.
-  startCallBridge(twilioWs, activeDemo, env);
+  // Which number was dialed? Route to that client; otherwise fall back to the demo.
+  let dialed = "";
+  try {
+    dialed = new URL(req.url, "http://x").searchParams.get("to") || "";
+  } catch {}
+  const client = getClientByNumber(dialed);
+  const biz = client ? toBizConfig(client) : activeDemo;
+  if (client) console.log(`[call] routed to client "${biz.businessName}" (dialed ${dialed})`);
+  else console.log(`[call] no client for ${dialed || "?"} — using demo "${biz.businessName}"`);
+  startCallBridge(twilioWs, biz, env);
 });
