@@ -14,9 +14,9 @@ import { fileURLToPath } from "url";
 import { dirname, join } from "path";
 import twilio from "twilio";
 import { startCallBridge } from "./realtime.js";
-import { listLeads } from "./db.js";
+import { listLeads, listLeadsByClient } from "./db.js";
 import { adminRouter } from "./admin.js";
-import { getClientByNumber, toBizConfig } from "./clients.js";
+import { getClientByNumber, toBizConfig, getClientByToken } from "./clients.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -172,6 +172,21 @@ app.get("/api/leads", (req, res) => {
   res.json(listLeads(200));
 });
 
+// ---- per-client private dashboard (token in the URL = access) ----
+// Data API: resolve the client FROM the token server-side, return ONLY their
+// leads. A clientId from the browser is never trusted.
+app.get("/d/:token/leads", (req, res) => {
+  const client = getClientByToken(req.params.token);
+  if (!client) return res.status(404).json({ error: "not found" });
+  res.json({ business: client.businessName, leads: listLeadsByClient(client.id, 200) });
+});
+// The dashboard page itself (static file; it reads its own token from the URL).
+app.get("/d/:token", (req, res) => {
+  const client = getClientByToken(req.params.token);
+  if (!client) return res.status(404).send("Not found");
+  res.sendFile(join(__dirname, "..", "public", "client-dashboard.html"));
+});
+
 app.use(express.static(join(__dirname, "..", "public")));
 app.get("/admin", (_req, res) => res.sendFile(join(__dirname, "..", "public", "admin.html")));
 app.get("/", (_req, res) => res.sendFile(join(__dirname, "..", "public", "dashboard.html")));
@@ -204,3 +219,5 @@ wss.on("connection", (twilioWs, req) => {
   else console.log(`[call] no client for ${dialed || "?"} — using demo "${biz.businessName}"`);
   startCallBridge(twilioWs, biz, env);
 });
+
+

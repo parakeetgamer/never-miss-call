@@ -6,6 +6,7 @@
 // path can look up "which business owns the number that was dialed."
 
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from "fs";
+import { randomBytes } from "crypto";
 import { fileURLToPath } from "url";
 import { dirname, join } from "path";
 
@@ -50,9 +51,22 @@ export function getClientByNumber(twilioNumber) {
   return load().find((c) => normalizeNumber(c.twilioNumber) === key) || null;
 }
 
+// Resolve a client from their private dashboard token (server-side only).
+export function getClientByToken(token) {
+  const t = String(token || "").trim();
+  if (!t) return null;
+  return load().find((c) => c.dashToken === t) || null;
+}
+
+// URL-safe, hard-to-guess token for a client's private dashboard link.
+function newToken() {
+  return randomBytes(16).toString("hex");
+}
+
 // Turn a stored client record into the exact config shape agent.js expects.
 export function toBizConfig(client) {
   return {
+    clientId: client.id,
     businessName: client.businessName,
     trade: client.trade,
     ownerName: client.ownerName,
@@ -104,7 +118,8 @@ export function saveClient(data) {
   if (data.id) {
     const i = list.findIndex((c) => c.id === data.id);
     if (i === -1) throw new Error("Client not found.");
-    list[i] = { ...list[i], ...data, updatedAt: now };
+    list[i] = { ...list[i], ...data, id: list[i].id, updatedAt: now };
+    if (!list[i].dashToken) list[i].dashToken = newToken();
     persist(list);
     return list[i];
   }
@@ -114,7 +129,10 @@ export function saveClient(data) {
   let n = 1;
   while (list.some((c) => c.id === id)) id = `${slugId(data.businessName)}-${++n}`;
 
-  const record = { id, createdAt: now, updatedAt: now, ...data };
+  // Spread data FIRST, then pin the authoritative id/timestamps so a stray
+  // `id: undefined` coming from the form can never clobber the generated id.
+  const record = { ...data, id, createdAt: now, updatedAt: now };
+  if (!record.dashToken) record.dashToken = newToken();
   list.push(record);
   persist(list);
   return record;
@@ -126,3 +144,5 @@ export function removeClient(id) {
   persist(next);
   return list.length !== next.length;
 }
+
+

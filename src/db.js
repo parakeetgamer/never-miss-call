@@ -36,6 +36,7 @@ export function saveLead(lead) {
     notes: lead.notes ?? null,
     call_sid: lead.call_sid ?? null,
     caller_number: lead.caller_number ?? null,
+    client_id: lead.client_id ?? null,
   };
   state.leads.push(row);
   write(state);
@@ -47,4 +48,15 @@ export function listLeads(limit = 200) {
   return state.leads.slice(-limit).reverse();
 }
 
-export default { saveLead, listLeads };
+// Only the leads belonging to one client (by clientId). Untagged legacy leads
+// (client_id === null) never match a real client, so they stay private to the
+// admin/all view.
+export function listLeadsByClient(clientId, limit = 200) {
+  if (!clientId) return [];
+  const state = read();
+  return state.leads.filter((l) => l.client_id === clientId).slice(-limit).reverse();
+}
+
+export default { saveLead, listLeads, listLeadsByClient };
+
+

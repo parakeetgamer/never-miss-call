@@ -386,6 +386,7 @@ export function startCallBridge(twilioWs, biz, env) {
         ...args,
         call_sid: callSid,
         caller_number: callerNumber,
+        client_id: biz.clientId || "demo",
       });
       leadBooked = true;
       await notifyOwner(biz, lead);
@@ -478,3 +479,5 @@ export function startCallBridge(twilioWs, biz, env) {
     try { if (twilioWs.readyState === WebSocket.OPEN) twilioWs.close(); } catch {}
   }
 }
+
+

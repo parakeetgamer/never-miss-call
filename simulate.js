@@ -9,7 +9,7 @@
 //                                a booking so you can verify the DB + owner-text
 //                                pipeline and see a sample dashboard lead.
 //
-// Either way, captured leads land in the same SQLite DB the phone version uses,
+// Either way, captured leads land in the same JSON lead store the phone version uses,
 // so you can run `npm start` afterward and see them on the dashboard.
 
 import "dotenv/config";
@@ -128,3 +128,5 @@ async function live() {
 
 if (MOCK) mock();
 else live();
+
+

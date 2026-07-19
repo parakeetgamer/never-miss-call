@@ -345,17 +345,31 @@ $("#clientForm").addEventListener("submit", async (e) => {
 
 function showGoLive(c){
   const num = c.twilioNumber;
+  const digits = String(num).replace(/\D/g,'');
+  const dashUrl = c.dashToken ? `https://${PUBLIC_HOST}/d/${c.dashToken}` : "";
   $("#livePanel").classList.remove("hide");
   $("#livePanel").innerHTML = `
     <h3>✓ ${esc(c.businessName)} is saved</h3>
-    <div style="color:var(--muted);font-size:14px">Two things to make them live:</div>
+    <div style="color:var(--muted);font-size:14px;margin-bottom:6px">Steps to go live:</div>
     <ol>
-      <li>In Twilio, open number <code>${esc(num)}</code> → Voice → “A call comes in” → Webhook (POST) to<br><code>https://${esc(PUBLIC_HOST)}/incoming-call</code></li>
-      <li>Have the owner forward their business line to <code>${esc(num)}</code> when unanswered (carrier code, e.g. <code>*61*${esc(num.replace(/\\D/g,''))}#</code>).</li>
+      <li><b>Point the Twilio number.</b> In Twilio open <code>${esc(num)}</code> → Voice → “A call comes in” → Webhook (POST) to<br><code>https://${esc(PUBLIC_HOST)}/incoming-call</code></li>
+      <li><b>Set conditional forwarding</b> on the owner's line to <code>${esc(num)}</code> — their phone rings first, only unanswered calls hit the AI:
+        <ul style="margin:8px 0 0;padding-left:18px;line-height:1.7">
+          <li><b>AT&amp;T / T-Mobile:</b> dial <code>**004*${esc(digits)}#</code> (no-answer + busy + unreachable). No-answer only: <code>*61*${esc(digits)}#</code></li>
+          <li><b>Verizon:</b> My Verizon app → Devices → Manage → Call Forwarding → “No Answer/Busy Transfer”, or dial <code>*71${esc(digits)}</code>. <em>Not *72 — that forwards every call.</em></li>
+          <li><b>VoIP / landline:</b> set “forward on no answer” in their provider's app/portal.</li>
+          <li>Ring time ~20–25 sec. Undo: <code>##002#</code> (AT&amp;T/T-Mobile) or <code>*73</code> (Verizon).</li>
+        </ul>
+      </li>
+      <li><b>Test.</b> Call <code>${esc(num)}</code>, let it ring unanswered → should reach the AI and appear on the board below. Answer one yourself → AI should NOT fire.</li>
     </ol>
+    ${dashUrl ? `<div style="margin-top:14px;padding:12px;background:#0c0e0a;border:1px solid var(--line);border-radius:10px">
+      <div style="font-family:var(--mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--ok);margin-bottom:6px">Their private job board — hand them this link</div>
+      <div style="word-break:break-all"><a href="${dashUrl}" target="_blank" style="color:var(--amber);font-family:var(--mono);font-size:13px">${dashUrl}</a></div>
+      <button class="btn-ghost btn-sm" style="margin-top:10px" onclick="navigator.clipboard.writeText('${dashUrl}').then(()=>{this.textContent='✓ Copied'})">Copy link</button>
+    </div>` : ""}
     <div style="margin-top:14px;display:flex;gap:10px">
       <button class="btn-primary btn-sm" onclick="showList()">Done</button>
-      <button class="btn-ghost btn-sm" onclick="document.querySelector('#livePanel').scrollIntoView()">Test: call ${esc(num)} yourself</button>
     </div>`;
   $("#livePanel").scrollIntoView({behavior:"smooth"});
 }
@@ -367,3 +381,5 @@ if(pw){ tryLogin(pw).then(ok => ok ? enter() : (sessionStorage.removeItem("admin
 </script>
 </body>
 </html>
+
+

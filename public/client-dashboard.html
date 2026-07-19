@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<title>Your Job Board</title>
+<style>
+  :root{
+    --ink:#14110c; --paper:#f3ede0; --paper-line:#e2d8c4; --card:#fffdf7; --rule:#d8cdb6;
+    --accent:#b4541f; --accent-deep:#7d3712; --emergency:#c0271c; --muted:#6f6657; --ok:#3f6b3f;
+    --stamp:rgba(192,39,28,.14);
+    --mono:ui-monospace,"SFMono-Regular","Menlo",monospace;
+    --sans:"Helvetica Neue",Arial,system-ui,sans-serif;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0}
+  body{
+    background:repeating-linear-gradient(transparent 0 31px, var(--paper-line) 31px 32px), var(--paper);
+    color:var(--ink); font-family:var(--sans);
+    padding:env(safe-area-inset-top) 0 calc(env(safe-area-inset-bottom) + 24px);
+  }
+  header{position:sticky;top:0;z-index:5;background:var(--ink);color:var(--paper);
+    padding:14px 18px;display:flex;align-items:baseline;justify-content:space-between;
+    box-shadow:0 2px 0 var(--accent-deep);}
+  header h1{margin:0;font-size:17px;letter-spacing:.14em;text-transform:uppercase;font-weight:800}
+  header .biz{font-family:var(--mono);font-size:12px;opacity:.75}
+  .wrap{max-width:680px;margin:0 auto;padding:16px 14px 0}
+  .bar{display:flex;gap:10px;align-items:center;justify-content:space-between;
+    font-family:var(--mono);font-size:12px;color:var(--muted);margin-bottom:14px}
+  .live{display:inline-flex;align-items:center;gap:6px}
+  .dot{width:8px;height:8px;border-radius:50%;background:var(--ok);animation:pulse 2s infinite}
+  @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(63,107,63,.5)}70%{box-shadow:0 0 0 7px rgba(63,107,63,0)}100%{box-shadow:0 0 0 0 rgba(63,107,63,0)}}
+  @media (prefers-reduced-motion:reduce){.dot{animation:none}}
+  .ticket{position:relative;background:var(--card);border:1px solid var(--rule);
+    border-left:5px solid var(--accent);border-radius:2px;padding:14px 16px 16px;margin-bottom:14px;
+    box-shadow:0 1px 0 rgba(0,0,0,.05),0 6px 14px -10px rgba(0,0,0,.4)}
+  .ticket.emergency{border-left-color:var(--emergency)}
+  .ticket.message{border-left-color:var(--muted)}
+  .ticket .top{display:flex;justify-content:space-between;align-items:baseline;
+    border-bottom:1px dashed var(--rule);padding-bottom:8px;margin-bottom:10px}
+  .tag{font-family:var(--mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;font-weight:700;color:var(--accent-deep)}
+  .ticket.message .tag{color:var(--muted)} .ticket.emergency .tag{color:var(--emergency)}
+  .time{font-family:var(--mono);font-size:11px;color:var(--muted)}
+  .name{font-size:19px;font-weight:800;margin:0 0 2px;letter-spacing:-.01em}
+  .problem{font-size:15px;line-height:1.45;margin:6px 0 0}
+  .meta{margin-top:10px;display:grid;gap:4px;font-size:13px;color:var(--muted)}
+  .meta b{color:var(--ink);font-weight:600}
+  .call{display:inline-flex;align-items:center;gap:7px;margin-top:12px;padding:10px 16px;
+    background:var(--ink);color:var(--paper);text-decoration:none;border-radius:3px;
+    font-weight:700;font-size:15px;letter-spacing:.02em}
+  .call:active{transform:translateY(1px)}
+  .emergency .stamp{position:absolute;top:10px;right:12px;font-family:var(--mono);font-weight:800;
+    font-size:12px;color:var(--emergency);border:2px solid var(--emergency);padding:2px 7px;
+    border-radius:3px;transform:rotate(7deg);background:var(--stamp);letter-spacing:.12em}
+  .empty{text-align:center;color:var(--muted);font-family:var(--mono);padding:60px 20px;line-height:1.6}
+  .empty b{color:var(--ink);display:block;font-size:15px;margin-bottom:4px}
+</style>
+</head>
+<body>
+<header>
+  <h1>Job Board</h1>
+  <span class="biz" id="biz"></span>
+</header>
+<div id="app" class="wrap"></div>
+
+<script>
+  const $ = (s,r=document)=>r.querySelector(s);
+  const app = $("#app");
+  // token is the last path segment: /d/<token>  -> data at /d/<token>/leads
+  const base = location.pathname.replace(/\/$/,"");
+
+  function fmtTime(iso){
+    const d=new Date(iso), now=new Date();
+    const t=d.toLocaleTimeString([],{hour:"numeric",minute:"2-digit"});
+    return d.toDateString()===now.toDateString() ? t
+      : d.toLocaleDateString([],{month:"short",day:"numeric"})+" · "+t;
+  }
+  function telHref(n){return "tel:"+(n||"").replace(/[^+\d]/g,"")}
+  function esc(s){return (s??"").toString().replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]))}
+
+  function ticket(l){
+    const isJob = l.type==="job";
+    const emergency = !!l.is_emergency;
+    const cls = emergency ? "emergency" : (isJob ? "" : "message");
+    const tag = emergency ? "Emergency" : (isJob ? "New job" : "Message");
+    const body = isJob
+      ? `${l.problem?`<p class="problem">${esc(l.problem)}</p>`:""}
+         <div class="meta">
+           ${l.service_address?`<div><b>Address</b> · ${esc(l.service_address)}</div>`:""}
+           ${l.notes?`<div><b>Notes</b> · ${esc(l.notes)}</div>`:""}
+         </div>`
+      : `${l.message?`<p class="problem">${esc(l.message)}</p>`:""}`;
+    const phone = l.callback_number;
+    return `
+      <div class="ticket ${cls}">
+        ${emergency?`<span class="stamp">RUSH</span>`:""}
+        <div class="top">
+          <span class="tag">${tag}</span>
+          <span class="time">${fmtTime(l.created_at)}</span>
+        </div>
+        <p class="name">${esc(l.customer_name)||"Unknown caller"}</p>
+        ${body}
+        ${phone?`<a class="call" href="${telHref(phone)}">📞 Call back · ${esc(phone)}</a>`:""}
+      </div>`;
+  }
+
+  async function load(){
+    try{
+      const res = await fetch(base+"/leads");
+      if(!res.ok){ app.innerHTML = `<div class="empty"><b>This link isn't active.</b>Ask whoever set this up for a fresh link.</div>`; return; }
+      const data = await res.json();
+      $("#biz").textContent = data.business || "";
+      const leads = data.leads || [];
+      if(!leads.length){
+        app.innerHTML = `<div class="bar"><span class="live"><span class="dot"></span>Listening for calls</span><span>0 leads</span></div>
+          <div class="empty"><b>No calls captured yet.</b>When someone calls and your assistant books a job, it shows up here.</div>`;
+        return;
+      }
+      const emg = leads.filter(l=>l.is_emergency).length;
+      app.innerHTML = `<div class="bar">
+          <span class="live"><span class="dot"></span>Live</span>
+          <span>${leads.length} lead${leads.length>1?"s":""}${emg?` · ${emg} rush`:""}</span>
+        </div>` + leads.map(ticket).join("");
+    }catch(e){
+      app.innerHTML = `<div class="empty"><b>Can't reach the board.</b>Check your connection and try again.</div>`;
+    }
+  }
+  load();
+  setInterval(load, 8000); // live-refresh every 8s
+</script>
+</body>
+</html>
