@@ -6,16 +6,9 @@
 <title>Client Onboarding · Never Miss a Call</title>
 <style>
   :root{
-    --bg:#10130f;          /* deep workshop green-black */
-    --panel:#181c15;
-    --card:#1f241b;
-    --line:#2e3626;
-    --ink:#f2f0e6;
-    --muted:#9aa389;
-    --amber:#e0a53f;       /* single accent — safety amber */
-    --amber-deep:#b8842a;
-    --ok:#8fbf6b;
-    --danger:#d5714f;
+    --bg:#10130f; --panel:#181c15; --card:#1f241b; --line:#2e3626;
+    --ink:#f2f0e6; --muted:#9aa389; --amber:#e0a53f; --amber-deep:#b8842a;
+    --ok:#8fbf6b; --danger:#d5714f;
     --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
     --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
   }
@@ -23,34 +16,67 @@
   html,body{margin:0}
   body{background:var(--bg);color:var(--ink);font-family:var(--sans);min-height:100vh;
     padding-bottom:calc(40px + env(safe-area-inset-bottom))}
-  header{padding:18px 20px;border-bottom:1px solid var(--line);
+  header{padding:16px 18px;border-bottom:1px solid var(--line);
     display:flex;align-items:center;justify-content:space-between;gap:12px;
     position:sticky;top:0;background:var(--bg);z-index:20}
-  header .brand{font-weight:800;font-size:16px;letter-spacing:.02em}
+  header .brand{font-weight:800;font-size:15px}
   header .brand span{color:var(--amber)}
-  .wrap{max-width:760px;margin:0 auto;padding:20px 16px}
+  .wrap{max-width:620px;margin:0 auto;padding:18px 16px}
 
-  button{font-family:var(--sans);cursor:pointer;border:0;border-radius:9px;font-weight:700;font-size:15px}
-  .btn-primary{background:var(--amber);color:#1a1405;padding:13px 18px}
+  button{font-family:var(--sans);cursor:pointer;border:0;border-radius:10px;font-weight:700;font-size:16px}
+  .btn-primary{background:var(--amber);color:#1a1405;padding:15px 20px;width:100%}
+  .btn-primary:disabled{opacity:.4}
   .btn-primary:active{transform:translateY(1px)}
-  .btn-ghost{background:transparent;color:var(--ink);border:1px solid var(--line);padding:11px 15px}
+  .btn-ghost{background:transparent;color:var(--ink);border:1px solid var(--line);padding:12px 16px}
+  .btn-sm{padding:9px 14px;font-size:13px;width:auto}
   .btn-danger{background:transparent;color:var(--danger);border:1px solid var(--line);padding:9px 13px;font-size:13px}
-  .btn-sm{padding:8px 13px;font-size:13px}
 
-  /* login */
+  input,textarea{width:100%;background:var(--card);border:1px solid var(--line);color:var(--ink);
+    border-radius:10px;padding:14px;font-size:17px;font-family:var(--sans)}
+  textarea{resize:vertical;min-height:64px;line-height:1.5}
+  label{display:block;font-size:13px;color:var(--muted);margin:14px 0 6px;font-weight:600}
+  .err{color:var(--danger);font-size:13px;min-height:18px;font-family:var(--mono);margin-top:8px}
+
   .login{max-width:340px;margin:16vh auto 0;text-align:center;padding:0 20px}
   .login .kick{font-family:var(--mono);font-size:12px;letter-spacing:.2em;text-transform:uppercase;color:var(--amber)}
   .login h1{font-size:22px;margin:6px 0 20px}
-  input,textarea,select{width:100%;background:var(--card);border:1px solid var(--line);color:var(--ink);
-    border-radius:9px;padding:12px 13px;font-size:16px;font-family:var(--sans)}
-  textarea{resize:vertical;min-height:70px;line-height:1.5}
   .login input{margin-bottom:12px}
-  .err{color:var(--danger);font-size:13px;min-height:18px;font-family:var(--mono)}
 
-  /* list */
-  .toolbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
+  .progress{display:flex;gap:6px;margin:4px 0 22px}
+  .progress i{flex:1;height:4px;border-radius:2px;background:var(--line)}
+  .progress i.on{background:var(--amber)}
+  .stepnum{font-family:var(--mono);font-size:12px;letter-spacing:.18em;text-transform:uppercase;color:var(--amber);font-weight:700}
+  h2.step{font-size:24px;margin:6px 0 6px;letter-spacing:-.01em;line-height:1.25}
+  p.lead{color:var(--muted);font-size:15px;line-height:1.55;margin:0 0 18px}
+
+  .action{background:var(--panel);border:1px solid var(--line);border-left:4px solid var(--amber);
+    border-radius:12px;padding:18px;margin:16px 0}
+  .action .what{font-size:16px;font-weight:700;margin-bottom:10px}
+  a.biglink{display:block;background:var(--amber);color:#1a1405;text-decoration:none;text-align:center;
+    font-weight:800;font-size:16px;padding:15px;border-radius:10px;margin:10px 0}
+  a.biglink:active{transform:translateY(1px)}
+  .copyrow{display:flex;gap:8px;align-items:stretch;margin:10px 0}
+  .copyrow code{flex:1;background:#0c0e0a;border:1px solid var(--line);border-radius:8px;
+    padding:13px;font-family:var(--mono);font-size:13px;color:var(--amber);
+    overflow-x:auto;white-space:nowrap;display:flex;align-items:center}
+  .copyrow button{flex-shrink:0;background:var(--ink);color:var(--bg);padding:0 18px;font-size:14px}
+  .navrow{display:flex;gap:10px;margin-top:22px}
+  .navrow .btn-ghost{flex:0 0 auto}
+  .navrow .btn-primary{flex:1}
+  .hint{font-size:13px;color:var(--muted);line-height:1.5;margin-top:10px}
+  .hide{display:none}
+
+  .carriers{width:100%;border-collapse:collapse;margin:8px 0}
+  .carriers td{border:1px solid var(--line);padding:11px 12px;font-size:14px;vertical-align:top}
+  .carriers td:first-child{color:var(--muted);white-space:nowrap;font-weight:600}
+  .carriers code{font-family:var(--mono);color:var(--amber);font-size:14px;word-break:break-all}
+
+  .check{display:flex;gap:12px;align-items:flex-start;background:var(--card);border:1px solid var(--line);
+    border-radius:10px;padding:14px;margin:10px 0;font-size:15px;line-height:1.45;cursor:pointer}
+  .check input{width:22px;height:22px;flex-shrink:0;accent-color:var(--amber);margin-top:1px}
+
+  .toolbar{display:flex;align-items:center;justify-content:space-between;margin:4px 0 16px}
   .toolbar h2{margin:0;font-size:20px}
-  .count{font-family:var(--mono);font-size:12px;color:var(--muted)}
   .client{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:15px 16px;margin-bottom:11px;
     display:flex;align-items:center;justify-content:space-between;gap:12px}
   .client .name{font-weight:700;font-size:16px}
@@ -58,328 +84,260 @@
   .client .actions{display:flex;gap:8px;flex-shrink:0}
   .empty{border:1px dashed var(--line);border-radius:12px;padding:34px 20px;text-align:center;color:var(--muted)}
   .empty b{color:var(--ink);display:block;margin-bottom:5px;font-size:16px}
-
-  /* form */
-  form{display:block}
-  .group{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px 16px 6px;margin-bottom:14px}
-  .group h3{margin:2px 0 4px;font-size:13px;font-family:var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--amber)}
-  .group .hint{font-size:12.5px;color:var(--muted);margin:0 0 12px}
-  .field{margin-bottom:14px}
-  label{display:block;font-size:13px;color:var(--muted);margin-bottom:5px;font-weight:600}
-  label .req{color:var(--amber)}
-  .row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-  @media(max-width:520px){.row{grid-template-columns:1fr}}
-  .toggle{display:flex;align-items:center;gap:10px;padding:4px 0 12px}
-  .toggle input{width:auto}
-  .formbar{display:flex;gap:10px;position:sticky;bottom:0;background:var(--bg);
-    padding:14px 0 calc(14px + env(safe-area-inset-bottom));border-top:1px solid var(--line);margin-top:6px}
-  .formbar .btn-primary{flex:1}
-
-  /* success / go-live */
-  .live{background:var(--card);border:1px solid var(--line);border-left:4px solid var(--ok);border-radius:12px;padding:18px;margin-bottom:16px}
-  .live h3{margin:0 0 4px;font-size:17px;color:var(--ok)}
-  .live ol{margin:12px 0 0;padding-left:20px;line-height:1.7;font-size:14.5px}
-  .live code{background:#0c0e0a;border:1px solid var(--line);border-radius:5px;padding:2px 6px;font-family:var(--mono);font-size:12.5px;color:var(--amber)}
-  .hide{display:none}
 </style>
 </head>
 <body>
 
-<!-- LOGIN -->
 <div id="login" class="login">
   <div class="kick">Never Miss a Call</div>
-  <h1>Client Onboarding</h1>
+  <h1>Onboarding</h1>
   <input id="pw" type="password" placeholder="Admin password" autocomplete="current-password"/>
-  <button class="btn-primary" id="loginBtn" style="width:100%">Unlock</button>
+  <button class="btn-primary" id="loginBtn">Unlock</button>
   <div class="err" id="loginErr"></div>
 </div>
 
-<!-- APP -->
 <div id="app" class="hide">
   <header>
     <div class="brand">Never Miss a Call · <span>Onboarding</span></div>
-    <button class="btn-primary btn-sm" id="newBtn">+ Add client</button>
+    <button class="btn-primary btn-sm" id="newBtn" style="width:auto">+ Onboard a client</button>
   </header>
-  <div class="wrap">
-
-    <!-- LIST VIEW -->
-    <div id="listView">
-      <div class="toolbar">
-        <h2>Your clients</h2>
-        <span class="count" id="count"></span>
-      </div>
-      <div id="clientList"></div>
-    </div>
-
-    <!-- FORM VIEW -->
-    <div id="formView" class="hide">
-      <div class="toolbar">
-        <h2 id="formTitle">Add a client</h2>
-        <button class="btn-ghost btn-sm" id="cancelBtn">Cancel</button>
-      </div>
-
-      <!-- success panel -->
-      <div id="livePanel" class="live hide"></div>
-
-      <form id="clientForm">
-        <input type="hidden" id="f_id" />
-        <input type="hidden" id="f_websiteInfo" />
-
-        <div class="group" style="border-left:4px solid var(--amber)">
-          <h3>⚡ Autofill from their website</h3>
-          <p class="hint">Paste their site, tap Autofill, and it fills in what it finds — and lets the bot answer questions from their site on live calls. Review before saving.</p>
-          <div class="field"><label>Website</label><input id="f_website" placeholder="davesplumbing.com" inputmode="url"/></div>
-          <button type="button" class="btn-primary" id="autofillBtn" style="width:100%">⚡ Autofill from website</button>
-          <div class="err" id="autofillStatus" style="color:var(--muted)"></div>
-        </div>
-
-        <div class="group">
-          <h3>The basics</h3>
-          <div class="row">
-            <div class="field"><label>Business name <span class="req">*</span></label><input id="f_businessName" placeholder="Dave's Plumbing"/></div>
-            <div class="field"><label>Trade</label><input id="f_trade" placeholder="plumbing"/></div>
-          </div>
-          <div class="row">
-            <div class="field"><label>Owner's name <span class="req">*</span></label><input id="f_ownerName" placeholder="Dave"/></div>
-            <div class="field"><label>Owner's cell (leads texted here) <span class="req">*</span></label><input id="f_ownerCell" placeholder="+1 503 555 1212" inputmode="tel"/></div>
-          </div>
-        </div>
-
-        <div class="group">
-          <h3>Phone routing</h3>
-          <p class="hint">The Twilio number you assign this client. Incoming calls to it get answered as this business.</p>
-          <div class="field"><label>Their Twilio number <span class="req">*</span></label><input id="f_twilioNumber" placeholder="+1 503 894 5568" inputmode="tel"/></div>
-        </div>
-
-        <div class="group">
-          <h3>Where & when</h3>
-          <div class="row">
-            <div class="field"><label>City</label><input id="f_city" placeholder="Vancouver, WA"/></div>
-            <div class="field"><label>Service area</label><input id="f_serviceArea" placeholder="Clark County"/></div>
-          </div>
-          <div class="field"><label>Hours</label><input id="f_hours" placeholder="Mon–Fri 7am–5pm"/></div>
-          <div class="toggle"><input type="checkbox" id="f_emergencyAvailable"/><label style="margin:0">Handles after-hours emergencies</label></div>
-        </div>
-
-        <div class="group">
-          <h3>What they do</h3>
-          <p class="hint">One per line, or comma-separated.</p>
-          <div class="field"><label>Services offered</label><textarea id="f_services" placeholder="Leak repair&#10;Water heater install&#10;Drain cleaning"></textarea></div>
-          <div class="field"><label>Does NOT do (politely declines)</label><textarea id="f_doesNotDo" placeholder="Septic pumping&#10;New construction"></textarea></div>
-        </div>
-
-        <div class="group">
-          <h3>The call</h3>
-          <div class="field"><label>Greeting</label><textarea id="f_greeting" placeholder="Auto-filled from the business name if left blank"></textarea></div>
-          <div class="field"><label>Extra questions to ask callers</label><textarea id="f_bookingQuestions" placeholder="Their name&#10;Best callback number&#10;What they need&#10;How urgent it is"></textarea></div>
-        </div>
-
-        <div class="err" id="formErr"></div>
-        <div class="formbar">
-          <button type="submit" class="btn-primary" id="saveBtn">Save & activate client</button>
-        </div>
-      </form>
-    </div>
-
-  </div>
+  <div class="wrap" id="view"></div>
 </div>
 
 <script>
-const $ = s => document.querySelector(s);
+const $ = (s,r=document)=>r.querySelector(s);
 let pw = sessionStorage.getItem("adminpw") || "";
-const PUBLIC_HOST = location.host;
+const HOST = location.host;
 
 async function api(path, opts={}){
-  const res = await fetch(path, {
-    ...opts,
-    headers: { "Content-Type":"application/json", "x-admin-password": pw, ...(opts.headers||{}) }
-  });
-  return res;
+  return fetch(path, {...opts, headers:{ "Content-Type":"application/json", "x-admin-password": pw, ...(opts.headers||{}) }});
 }
+function esc(s){return String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));}
+function copy(text, btn){ navigator.clipboard.writeText(text).then(()=>{ const t=btn.textContent; btn.textContent="✓ Copied"; setTimeout(()=>btn.textContent=t,1600); }); }
 
-// ---- auth ----
-async function tryLogin(p){
-  const r = await fetch("/clients/api/login", {method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({pw:p})});
-  return r.ok;
-}
+// ---------- auth ----------
 $("#loginBtn").onclick = async () => {
   const val = $("#pw").value;
-  if(await tryLogin(val)){ pw = val; sessionStorage.setItem("adminpw", pw); enter(); }
-  else $("#loginErr").textContent = "Wrong password.";
+  const r = await fetch("/clients/api/login",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({pw:val})});
+  if(r.ok){ pw=val; sessionStorage.setItem("adminpw",pw); enter(); } else $("#loginErr").textContent="Wrong password.";
 };
-$("#pw").addEventListener("keydown", e => { if(e.key==="Enter") $("#loginBtn").click(); });
+$("#pw").addEventListener("keydown",e=>{if(e.key==="Enter")$("#loginBtn").click()});
+function enter(){ $("#login").classList.add("hide"); $("#app").classList.remove("hide"); showList(); }
 
-function enter(){ $("#login").classList.add("hide"); $("#app").classList.remove("hide"); loadClients(); showList(); }
+// ---------- wizard state ----------
+let wiz = {};
+function resetWiz(){ wiz = { num:"", webhookDone:false, client:null }; }
 
-// ---- views ----
-function showList(){ $("#listView").classList.remove("hide"); $("#formView").classList.add("hide"); loadClients(); }
-function showForm(){ $("#listView").classList.add("hide"); $("#formView").classList.remove("hide"); $("#livePanel").classList.add("hide"); }
+const TOTAL = 6;
+function chrome(step, title, lead){
+  let bars=""; for(let i=1;i<=TOTAL;i++) bars+=`<i class="${i<=step?'on':''}"></i>`;
+  return `<div class="progress">${bars}</div>
+    <div class="stepnum">Step ${step} of ${TOTAL}</div>
+    <h2 class="step">${title}</h2>
+    <p class="lead">${lead}</p>`;
+}
+function nav(backFn, nextLabel, nextFn, nextDisabled){
+  return `<div class="navrow">
+    ${backFn?`<button class="btn-ghost" onclick="${backFn}()">‹ Back</button>`:""}
+    <button class="btn-primary" id="nextBtn" ${nextDisabled?"disabled":""} onclick="${nextFn}()">${nextLabel}</button>
+  </div>`;
+}
 
-$("#newBtn").onclick = () => { resetForm(); $("#formTitle").textContent="Add a client"; showForm(); };
-$("#cancelBtn").onclick = showList;
+// ---------- STEP 1 ----------
+function step1(){
+  $("#view").innerHTML = chrome(1,"Buy their Twilio number","One number per client. Get one in their area code.") + `
+    <div class="action">
+      <div class="what">1 · Open Twilio's buy-a-number page:</div>
+      <a class="biglink" href="https://console.twilio.com/us1/develop/phone-numbers/manage/search" target="_blank">Open Twilio → Buy a Number ↗</a>
+      <div class="hint">Search their area code (503 / 360) → pick one with <b>Voice + SMS</b> → Buy. ~$1/mo.</div>
+    </div>
+    <div class="action">
+      <div class="what">2 · Paste the number you just bought:</div>
+      <input id="wNum" placeholder="+1 503 555 0123" inputmode="tel" value="${esc(wiz.num)}" oninput="wiz.num=this.value; $('#nextBtn').disabled=!this.value.trim()"/>
+    </div>
+    ${nav("showList","Next ›","step2", !wiz.num.trim())}`;
+}
 
-// ---- autofill from website ----
-$("#autofillBtn").onclick = async () => {
+// ---------- STEP 2 ----------
+function step2(){
+  $("#view").innerHTML = chrome(2,"Point the number at the app","Tell Twilio to send that number's calls to your receptionist.") + `
+    <div class="action">
+      <div class="what">1 · Open your numbers list and click <b>${esc(wiz.num||"the new number")}</b>:</div>
+      <a class="biglink" href="https://console.twilio.com/us1/develop/phone-numbers/manage/incoming" target="_blank">Open Twilio → Active Numbers ↗</a>
+    </div>
+    <div class="action">
+      <div class="what">2 · Under <b>Voice → "A call comes in"</b> choose <b>Webhook</b>, paste this, method <b>HTTP POST</b>, hit Save:</div>
+      <div class="copyrow">
+        <code>https://${esc(HOST)}/incoming-call</code>
+        <button onclick="copy('https://${esc(HOST)}/incoming-call', this)">Copy</button>
+      </div>
+    </div>
+    <label class="check"><input type="checkbox" ${wiz.webhookDone?"checked":""} onchange="wiz.webhookDone=this.checked; $('#nextBtn').disabled=!this.checked"/>
+      I pasted the webhook and hit Save in Twilio</label>
+    ${nav("step1","Next ›","step3", !wiz.webhookDone)}`;
+}
+
+// ---------- STEP 3 ----------
+function step3(){
+  $("#view").innerHTML = chrome(3,"Add their business info","Paste their website first — it fills most of this for you.") + `
+    <div class="action">
+      <div class="what">⚡ Autofill (do this first)</div>
+      <input id="f_website" placeholder="their website — e.g. davesplumbing.com" inputmode="url"/>
+      <button class="btn-primary" style="margin-top:10px" id="autofillBtn" onclick="runAutofill()">⚡ Autofill from website</button>
+      <div class="err" id="autofillStatus" style="color:var(--muted)"></div>
+    </div>
+    <input type="hidden" id="f_websiteInfo"/>
+    <label>Business name *</label><input id="f_businessName"/>
+    <label>Owner's first name *</label><input id="f_ownerName"/>
+    <label>Owner's cell — leads get texted here *</label><input id="f_ownerCell" inputmode="tel" placeholder="+1 503 555 0123"/>
+    <label>Trade</label><input id="f_trade" placeholder="plumbing"/>
+    <label>City</label><input id="f_city"/>
+    <label>Service area</label><input id="f_serviceArea"/>
+    <label>Hours</label><input id="f_hours" placeholder="Mon–Fri 7am–5pm"/>
+    <label class="check" style="margin-top:14px"><input type="checkbox" id="f_emergency"/> Handles after-hours emergencies</label>
+    <label>Services offered (one per line)</label><textarea id="f_services"></textarea>
+    <label>Does NOT do (politely declines)</label><textarea id="f_doesNotDo"></textarea>
+    <div class="err" id="formErr"></div>
+    ${nav("step2","Save & continue ›","saveClient", false)}`;
+}
+
+async function runAutofill(){
   const website = $("#f_website").value.trim();
-  if(!website){ $("#autofillStatus").textContent = "Enter a website first."; return; }
-  const btn = $("#autofillBtn"); btn.disabled = true;
-  $("#autofillStatus").style.color = "var(--muted)";
+  if(!website){ $("#autofillStatus").textContent="Enter their website first."; return; }
+  $("#autofillBtn").disabled = true;
+  $("#autofillStatus").style.color="var(--muted)";
   $("#autofillStatus").textContent = "Reading their site…";
-  try {
-    const r = await api("/clients/api/autofill", {method:"POST", body: JSON.stringify({website})});
-    const data = await r.json();
-    btn.disabled = false;
-    if(!r.ok){ $("#autofillStatus").textContent = "Couldn't read that site — fill it in manually."; return; }
-    if(!data.foundSite){ $("#autofillStatus").textContent = "Site didn't load — fill it in manually (the bot just won't have site info)."; return; }
-    const f = data.fields || {};
-    const set = (id, val) => { if(val && !$(id).value) $(id).value = val; };
-    set("#f_businessName", f.businessName);
-    set("#f_trade", f.trade);
-    set("#f_ownerName", f.ownerName);
-    set("#f_city", f.city);
-    set("#f_serviceArea", f.serviceArea);
-    set("#f_hours", f.hours);
-    if(f.services && f.services.length && !$("#f_services").value) $("#f_services").value = f.services.join("\n");
-    if(f.doesNotDo && f.doesNotDo.length && !$("#f_doesNotDo").value) $("#f_doesNotDo").value = f.doesNotDo.join("\n");
-    $("#f_websiteInfo").value = data.websiteInfo || "";
-    $("#autofillStatus").style.color = "var(--ok)";
-    $("#autofillStatus").textContent = "✓ Filled in what it found + saved site info for the bot. Review, then finish the required fields.";
-  } catch(e){
-    btn.disabled = false;
-    $("#autofillStatus").textContent = "Something went wrong — fill it in manually.";
-  }
-};
+  try{
+    const r = await api("/clients/api/autofill",{method:"POST",body:JSON.stringify({website})});
+    const d = await r.json();
+    $("#autofillBtn").disabled = false;
+    if(!r.ok || !d.foundSite){ $("#autofillStatus").textContent = "Site didn't load — fill fields manually (still works fine)."; return; }
+    const f = d.fields||{};
+    const set=(id,v)=>{ if(v && !$(id).value) $(id).value=v; };
+    set("#f_businessName",f.businessName); set("#f_trade",f.trade); set("#f_ownerName",f.ownerName);
+    set("#f_city",f.city); set("#f_serviceArea",f.serviceArea); set("#f_hours",f.hours);
+    if(f.services && f.services.length && !$("#f_services").value) $("#f_services").value=f.services.join("\n");
+    if(f.doesNotDo && f.doesNotDo.length && !$("#f_doesNotDo").value) $("#f_doesNotDo").value=f.doesNotDo.join("\n");
+    $("#f_websiteInfo").value = d.websiteInfo||"";
+    $("#autofillStatus").style.color="var(--ok)";
+    $("#autofillStatus").textContent = "✓ Filled what it found. Finish the starred fields.";
+  }catch(e){ $("#autofillBtn").disabled=false; $("#autofillStatus").textContent="Couldn't read the site — fill manually."; }
+}
 
-// ---- list ----
-async function loadClients(){
+async function saveClient(){
+  $("#formErr").textContent="";
+  const payload = {
+    businessName: $("#f_businessName").value, ownerName: $("#f_ownerName").value,
+    ownerCell: $("#f_ownerCell").value, twilioNumber: wiz.num,
+    trade: $("#f_trade").value, city: $("#f_city").value,
+    serviceArea: $("#f_serviceArea").value, hours: $("#f_hours").value,
+    emergencyAvailable: $("#f_emergency").checked,
+    services: $("#f_services").value, doesNotDo: $("#f_doesNotDo").value,
+    website: $("#f_website").value, websiteInfo: $("#f_websiteInfo").value,
+  };
+  const r = await api("/clients/api/clients",{method:"POST",body:JSON.stringify(payload)});
+  const d = await r.json();
+  if(!r.ok){ $("#formErr").textContent = d.error||"Something went wrong."; return; }
+  wiz.client = d.client;
+  step4();
+}
+
+// ---------- STEP 4 ----------
+function step4(){
+  const digits = String(wiz.client.twilioNumber).replace(/\D/g,"");
+  $("#view").innerHTML = chrome(4,"Forward their real line","Their phone rings first — only unanswered calls hit the AI. The owner dials ONE code on THEIR phone.") + `
+    <div class="action">
+      <div class="what">Ask: "Who's your cell carrier?" — then have them dial:</div>
+      <table class="carriers">
+        <tr><td>AT&amp;T /<br>T-Mobile</td><td><code>**004*${digits}#</code> <button class="btn-ghost btn-sm" onclick="copy('**004*${digits}#',this)">Copy</button></td></tr>
+        <tr><td>Verizon</td><td><code>*71${digits}</code> <button class="btn-ghost btn-sm" onclick="copy('*71${digits}',this)">Copy</button><div class="hint">Or My Verizon app → Call Forwarding → "No Answer/Busy Transfer". Never *72.</div></td></tr>
+        <tr><td>VoIP /<br>landline</td><td>Their provider's app → <b>"forward on no answer"</b> → to <code>${esc(wiz.client.twilioNumber)}</code></td></tr>
+      </table>
+      <div class="hint">Undo later: <code>##002#</code> (AT&amp;T/T-Mobile) · <code>*73</code> (Verizon)</div>
+    </div>
+    <label class="check"><input type="checkbox" onchange="$('#nextBtn').disabled=!this.checked"/> They dialed it (or set it in their app)</label>
+    ${nav(null,"Next ›","step5", true)}`;
+}
+
+// ---------- STEP 5 ----------
+function step5(){
+  $("#view").innerHTML = chrome(5,"Test it — right now","Two quick calls prove the whole thing works. Don't skip this.") + `
+    <div class="action">
+      <div class="what">1 · Call their REAL business number. Let it ring — don't answer.</div>
+      <div class="hint">After ~20–25 sec it forwards and the AI answers as ${esc(wiz.client.businessName)}. Give it a fake job (name, number, problem).</div>
+    </div>
+    <div class="action">
+      <div class="what">2 · Open their board — the fake lead should appear:</div>
+      <a class="biglink" href="https://${esc(HOST)}/d/${esc(wiz.client.dashToken)}" target="_blank">Open their live job board ↗</a>
+    </div>
+    <div class="action">
+      <div class="what">3 · Call again and ANSWER it yourself.</div>
+      <div class="hint">The AI should NOT pick up — proves their phone still rings first.</div>
+    </div>
+    <label class="check"><input type="checkbox" onchange="$('#nextBtn').disabled=!this.checked"/> All three checks passed</label>
+    ${nav(null,"Next ›","step6", true)}`;
+}
+
+// ---------- STEP 6 ----------
+function step6(){
+  const dash = `https://${HOST}/d/${wiz.client.dashToken}`;
+  const pay = localStorage.getItem("stripeLink") || "";
+  $("#view").innerHTML = chrome(6,"Send them two links","Text these to the owner and you're done.") + `
+    <div class="action">
+      <div class="what">Their private job board:</div>
+      <div class="copyrow"><code>${esc(dash)}</code><button onclick="copy('${esc(dash)}',this)">Copy</button></div>
+      <div class="hint">Every lead the AI catches shows up here. Tell them to bookmark it.</div>
+    </div>
+    <div class="action">
+      <div class="what">Your Stripe payment link ($299/mo):</div>
+      <input id="payLink" placeholder="paste your Stripe link once — it's remembered" value="${esc(pay)}"
+        oninput="localStorage.setItem('stripeLink', this.value)"/>
+      <button class="btn-ghost" style="margin-top:10px;width:100%" onclick="copy($('#payLink').value,this)">Copy payment link</button>
+    </div>
+    <div class="action" style="border-left-color:var(--ok)">
+      <div class="what" style="color:var(--ok)">✓ ${esc(wiz.client.businessName)} is live.</div>
+      <div class="hint">Check in day 2 ("working okay?") and day 7 ("here's what it caught"). That's what keeps them paying.</div>
+    </div>
+    <div class="navrow"><button class="btn-primary" onclick="showList()">Done</button></div>`;
+}
+
+// ---------- client list ----------
+async function showList(){
+  resetWiz();
   const r = await api("/clients/api/clients");
   if(r.status===401){ sessionStorage.removeItem("adminpw"); location.reload(); return; }
   const clients = await r.json();
-  $("#count").textContent = clients.length + (clients.length===1?" client":" clients");
-  const el = $("#clientList");
+  let rows;
   if(!clients.length){
-    el.innerHTML = `<div class="empty"><b>No clients yet.</b>Tap “+ Add client” to onboard your first one.</div>`;
-    return;
+    rows = `<div class="empty"><b>No clients yet.</b>Tap "+ Onboard a client" — it walks you through every step.</div>`;
+  } else {
+    rows = clients.map(c=>`
+      <div class="client">
+        <div>
+          <div class="name">${esc(c.businessName)}</div>
+          <div class="meta">${esc(c.ownerName||"")} · ${esc(c.twilioNumber||"")}</div>
+        </div>
+        <div class="actions">
+          <button class="btn-ghost btn-sm" onclick="copy('https://${HOST}/d/${esc(c.dashToken||"")}',this)">Board link</button>
+          <button class="btn-danger" onclick="delClient('${c.id}','${esc(c.businessName)}')">Delete</button>
+        </div>
+      </div>`).join("");
   }
-  el.innerHTML = clients.map(c => `
-    <div class="client">
-      <div>
-        <div class="name">${esc(c.businessName)}</div>
-        <div class="meta">${esc(c.ownerName||"")} · ${esc(c.twilioNumber||"no number")}</div>
-      </div>
-      <div class="actions">
-        <button class="btn-ghost btn-sm" onclick="editClient('${c.id}')">Edit</button>
-        <button class="btn-danger" onclick="delClient('${c.id}','${esc(c.businessName)}')">Delete</button>
-      </div>
-    </div>`).join("");
+  $("#view").innerHTML = `<div class="toolbar"><h2>Your clients</h2>
+    <span class="hint">${clients.length} total</span></div>${rows}`;
 }
-
-window.editClient = async (id) => {
-  const r = await api("/clients/api/clients/"+id);
-  const c = await r.json();
-  resetForm();
-  $("#formTitle").textContent = "Edit client";
-  $("#f_id").value = c.id;
-  $("#f_website").value = c.website||"";
-  $("#f_websiteInfo").value = c.websiteInfo||"";
-  $("#f_businessName").value = c.businessName||"";
-  $("#f_trade").value = c.trade||"";
-  $("#f_ownerName").value = c.ownerName||"";
-  $("#f_ownerCell").value = c.ownerCell||"";
-  $("#f_twilioNumber").value = c.twilioNumber||"";
-  $("#f_city").value = c.city||"";
-  $("#f_serviceArea").value = c.serviceArea||"";
-  $("#f_hours").value = c.hours||"";
-  $("#f_emergencyAvailable").checked = !!c.emergencyAvailable;
-  $("#f_services").value = (c.services||[]).join("\n");
-  $("#f_doesNotDo").value = (c.doesNotDo||[]).join("\n");
-  $("#f_greeting").value = c.greeting||"";
-  $("#f_bookingQuestions").value = (c.bookingQuestions||[]).join("\n");
-  showForm();
-};
-
-window.delClient = async (id, name) => {
+window.delClient = async (id,name)=>{
   if(!confirm(`Delete ${name}? This stops their receptionist.`)) return;
-  await api("/clients/api/clients/"+id, {method:"DELETE"});
-  loadClients();
+  await api("/clients/api/clients/"+id,{method:"DELETE"});
+  showList();
 };
-
-// ---- form ----
-function resetForm(){
-  $("#clientForm").reset();
-  $("#f_id").value = "";
-  $("#f_websiteInfo").value = "";
-  if($("#autofillStatus")) $("#autofillStatus").textContent = "";
-  $("#formErr").textContent = "";
-  $("#livePanel").classList.add("hide");
-}
-
-$("#clientForm").addEventListener("submit", async (e) => {
-  e.preventDefault();
-  $("#formErr").textContent = "";
-  $("#saveBtn").disabled = true;
-  const payload = {
-    id: $("#f_id").value || undefined,
-    website: $("#f_website").value,
-    websiteInfo: $("#f_websiteInfo").value,
-    businessName: $("#f_businessName").value,
-    trade: $("#f_trade").value,
-    ownerName: $("#f_ownerName").value,
-    ownerCell: $("#f_ownerCell").value,
-    twilioNumber: $("#f_twilioNumber").value,
-    city: $("#f_city").value,
-    serviceArea: $("#f_serviceArea").value,
-    hours: $("#f_hours").value,
-    emergencyAvailable: $("#f_emergencyAvailable").checked,
-    services: $("#f_services").value,
-    doesNotDo: $("#f_doesNotDo").value,
-    greeting: $("#f_greeting").value,
-    bookingQuestions: $("#f_bookingQuestions").value,
-  };
-  const r = await api("/clients/api/clients", {method:"POST", body: JSON.stringify(payload)});
-  const data = await r.json();
-  $("#saveBtn").disabled = false;
-  if(!r.ok){ $("#formErr").textContent = data.error || "Something went wrong."; return; }
-  showGoLive(data.client);
-});
-
-function showGoLive(c){
-  const num = c.twilioNumber;
-  const digits = String(num).replace(/\D/g,'');
-  const dashUrl = c.dashToken ? `https://${PUBLIC_HOST}/d/${c.dashToken}` : "";
-  $("#livePanel").classList.remove("hide");
-  $("#livePanel").innerHTML = `
-    <h3>✓ ${esc(c.businessName)} is saved</h3>
-    <div style="color:var(--muted);font-size:14px;margin-bottom:6px">Steps to go live:</div>
-    <ol>
-      <li><b>Point the Twilio number.</b> In Twilio open <code>${esc(num)}</code> → Voice → “A call comes in” → Webhook (POST) to<br><code>https://${esc(PUBLIC_HOST)}/incoming-call</code></li>
-      <li><b>Set conditional forwarding</b> on the owner's line to <code>${esc(num)}</code> — their phone rings first, only unanswered calls hit the AI:
-        <ul style="margin:8px 0 0;padding-left:18px;line-height:1.7">
-          <li><b>AT&amp;T / T-Mobile:</b> dial <code>**004*${esc(digits)}#</code> (no-answer + busy + unreachable). No-answer only: <code>*61*${esc(digits)}#</code></li>
-          <li><b>Verizon:</b> My Verizon app → Devices → Manage → Call Forwarding → “No Answer/Busy Transfer”, or dial <code>*71${esc(digits)}</code>. <em>Not *72 — that forwards every call.</em></li>
-          <li><b>VoIP / landline:</b> set “forward on no answer” in their provider's app/portal.</li>
-          <li>Ring time ~20–25 sec. Undo: <code>##002#</code> (AT&amp;T/T-Mobile) or <code>*73</code> (Verizon).</li>
-        </ul>
-      </li>
-      <li><b>Test.</b> Call <code>${esc(num)}</code>, let it ring unanswered → should reach the AI and appear on the board below. Answer one yourself → AI should NOT fire.</li>
-    </ol>
-    ${dashUrl ? `<div style="margin-top:14px;padding:12px;background:#0c0e0a;border:1px solid var(--line);border-radius:10px">
-      <div style="font-family:var(--mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--ok);margin-bottom:6px">Their private job board — hand them this link</div>
-      <div style="word-break:break-all"><a href="${dashUrl}" target="_blank" style="color:var(--amber);font-family:var(--mono);font-size:13px">${dashUrl}</a></div>
-      <button class="btn-ghost btn-sm" style="margin-top:10px" onclick="navigator.clipboard.writeText('${dashUrl}').then(()=>{this.textContent='✓ Copied'})">Copy link</button>
-    </div>` : ""}
-    <div style="margin-top:14px;display:flex;gap:10px">
-      <button class="btn-primary btn-sm" onclick="showList()">Done</button>
-    </div>`;
-  $("#livePanel").scrollIntoView({behavior:"smooth"});
-}
-
-function esc(s){return String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));}
+$("#newBtn").onclick = ()=>{ resetWiz(); step1(); };
 
 // boot
-if(pw){ tryLogin(pw).then(ok => ok ? enter() : (sessionStorage.removeItem("adminpw"))); }
+if(pw){
+  fetch("/clients/api/login",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({pw})})
+    .then(r=>r.ok?enter():sessionStorage.removeItem("adminpw"));
+}
 </script>
 </body>
 </html>
-
-
