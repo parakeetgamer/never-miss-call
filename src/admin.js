@@ -14,6 +14,18 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const PASSWORD =
   process.env.ADMIN_PASSWORD || process.env.DASHBOARD_PASSWORD || "changeme";
 
+// Normalize a US phone number to E.164 (+1XXXXXXXXXX) so Twilio never rejects
+// it. Leaves already-E.164 and non-US numbers alone.
+function toE164(raw) {
+  const s = String(raw || "").trim();
+  if (!s) return "";
+  if (/^\+/.test(s)) return s.replace(/[^\d+]/g, "");
+  const d = s.replace(/\D/g, "");
+  if (d.length === 10) return "+1" + d;
+  if (d.length === 11 && d.startsWith("1")) return "+" + d;
+  return d ? "+" + d : "";
+}
+
 export function adminRouter() {
   const router = express.Router();
   router.use(express.json());
@@ -76,8 +88,8 @@ export function adminRouter() {
         businessName: b.businessName.trim(),
         trade: (b.trade || "home services").trim(),
         ownerName: b.ownerName.trim(),
-        ownerCell: b.ownerCell.trim(),
-        twilioNumber: b.twilioNumber.trim(),
+        ownerCell: toE164(b.ownerCell),
+        twilioNumber: toE164(b.twilioNumber),
         city: (b.city || "").trim(),
         serviceArea: (b.serviceArea || b.city || "the local area").trim(),
         hours: (b.hours || "our normal business hours").trim(),
@@ -103,3 +115,5 @@ export function adminRouter() {
 
   return router;
 }
+
+
