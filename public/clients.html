@@ -590,7 +590,7 @@ function openScript(){
   if(!currentProspect) return;
   scriptProspect = currentProspect;
   scriptStack = [];
-  renderScript("start");
+  renderScript("dial");
 }
 
 function scriptGo(id){
@@ -602,7 +602,7 @@ function scriptGo(id){
 function scriptBack(){
   scriptStack.pop();
   const prev = scriptStack[scriptStack.length-1];
-  if(prev) renderScript(prev); else renderScript("start");
+  if(prev) renderScript(prev); else renderScript("dial");
 }
 
 function renderScript(id, pushed){
@@ -616,7 +616,7 @@ function renderScript(id, pushed){
   const next = n.next
     ? `<div class="theysay">Do this now</div><ul class="nextlist">${n.next.map(x=>`<li>${esc(fill(x))}</li>`).join("")}</ul>`
     : "";
-  const signals = id==="start"
+  const signals = (id==="dial" || id==="afterdemo")
     ? `<div class="signals"><div class="t">Buying signals — stop selling, close</div><ul style="margin:0;padding-left:16px">
         ${window.BUYING_SIGNALS.map(x=>`<li>${esc(x)}</li>`).join("")}</ul></div>` : "";
 
