@@ -80,7 +80,13 @@ export function toBizConfig(client) {
     bookingQuestions:
       client.bookingQuestions && client.bookingQuestions.length
         ? client.bookingQuestions
-        : ["their name", "the best callback number", "what they need help with", "how urgent it is"],
+        : [
+            "their name",
+            "the best callback number",
+            "the service address where the work is needed",
+            "what they need help with",
+            "how urgent it is",
+          ],
     greeting: client.greeting,
     tone: client.tone || "warm, friendly, and easygoing",
     // If we scraped their site during onboarding, the bot answers questions

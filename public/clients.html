@@ -197,6 +197,8 @@ function step3(){
     <label class="check" style="margin-top:14px"><input type="checkbox" id="f_emergency"/> Handles after-hours emergencies</label>
     <label>Services offered (one per line)</label><textarea id="f_services"></textarea>
     <label>Does NOT do (politely declines)</label><textarea id="f_doesNotDo"></textarea>
+    <label>Questions the assistant should ask callers (one per line — leave blank for sensible defaults)</label>
+    <textarea id="f_bookingQuestions" placeholder="their name&#10;the best callback number&#10;the service address&#10;what they need help with&#10;how urgent it is"></textarea>
     <div class="err" id="formErr"></div>
     ${nav("step2","Save & continue ›","saveClient", false)}`;
 }
@@ -233,6 +235,7 @@ async function saveClient(){
     serviceArea: $("#f_serviceArea").value, hours: $("#f_hours").value,
     emergencyAvailable: $("#f_emergency").checked,
     services: $("#f_services").value, doesNotDo: $("#f_doesNotDo").value,
+    bookingQuestions: $("#f_bookingQuestions").value,
     website: $("#f_website").value, websiteInfo: $("#f_websiteInfo").value,
   };
   const r = await api("/clients/api/clients",{method:"POST",body:JSON.stringify(payload)});
@@ -359,3 +362,5 @@ if(pw){
 </script>
 </body>
 </html>
+
+

@@ -107,6 +107,8 @@ export function startCallBridge(twilioWs, biz, env, initialMsg) {
   let haveName = false;         // captured caller's name?
   let haveNumber = false;       // captured callback number?
   let haveSituation = false;    // captured the problem/reason?
+  let haveAddress = false;      // captured a service address?
+  let bookedJob = false;        // was this a job (needs an address) vs a message?
   const audioQueue = [];
 
   // Treat blanks and filler like "Unknown" / "N/A" as NOT captured.
@@ -343,12 +345,15 @@ export function startCallBridge(twilioWs, biz, env, initialMsg) {
       }
       const reason = (args.reason || "").toLowerCase();
       const isEmergency = /911|emergency|fire|gas|safety|hurt|injur/.test(reason);
-      const ready = haveName && haveNumber && haveSituation;
+      // A booked JOB also needs somewhere to send the truck.
+      const ready =
+        haveName && haveNumber && haveSituation && (!bookedJob || haveAddress);
       if (!ready && !isEmergency) {
         const missing = [
           !haveName ? "the caller's name" : null,
           !haveNumber ? "a callback number" : null,
           !haveSituation ? "a description of their situation" : null,
+          bookedJob && !haveAddress ? "the service address (street address where the work is needed)" : null,
         ].filter(Boolean).join(", ");
         console.log(`[call] end_call BLOCKED — still missing: ${missing}`);
         openAi.send(
@@ -401,6 +406,8 @@ export function startCallBridge(twilioWs, biz, env, initialMsg) {
     if (present(args.customer_name)) haveName = true;
     if (present(args.callback_number)) haveNumber = true;
     if (present(args.problem) || present(args.message)) haveSituation = true;
+    if (present(args.service_address)) haveAddress = true;
+    if (type === "job") bookedJob = true;
     let lead = null;
     try {
       lead = saveLead({
@@ -510,5 +517,7 @@ export function startCallBridge(twilioWs, biz, env, initialMsg) {
     try { if (twilioWs.readyState === WebSocket.OPEN) twilioWs.close(); } catch {}
   }
 }
+
+
 
 
