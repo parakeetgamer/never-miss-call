@@ -8,11 +8,12 @@ import express from "express";
 import { fileURLToPath } from "url";
 import { dirname, join } from "path";
 import { listClients, getClient, saveClient, removeClient } from "./clients.js";
+import { deleteLeadsByClient } from "./db.js";
+import { checkAdmin, passwordMatches, isLockedOut, noteFailure, noteSuccess } from "./auth.js";
 import { fetchSiteText, extractBusinessInfo } from "./scrape.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const PASSWORD =
-  process.env.ADMIN_PASSWORD || process.env.DASHBOARD_PASSWORD || "changeme";
+
 
 // Normalize a US phone number to E.164 (+1XXXXXXXXXX) so Twilio never rejects
 // it. Leaves already-E.164 and non-US numbers alone.
@@ -31,8 +32,7 @@ export function adminRouter() {
   router.use(express.json());
 
   function auth(req, res, next) {
-    const pw = req.get("x-admin-password") || req.query.pw || (req.body && req.body.pw);
-    if (pw !== PASSWORD) return res.status(401).json({ error: "unauthorized" });
+    if (!checkAdmin(req, res)) return;
     next();
   }
 
@@ -41,7 +41,12 @@ export function adminRouter() {
   );
 
   router.post("/clients/api/login", (req, res) => {
-    if ((req.body && req.body.pw) !== PASSWORD) return res.status(401).json({ ok: false });
+    if (isLockedOut(req)) return res.status(429).json({ ok: false, error: "too many attempts" });
+    if (!passwordMatches(req.body && req.body.pw)) {
+      noteFailure(req);
+      return res.status(401).json({ ok: false });
+    }
+    noteSuccess(req);
     res.json({ ok: true });
   });
 
@@ -110,10 +115,17 @@ export function adminRouter() {
   });
 
   router.delete("/clients/api/clients/:id", auth, (req, res) => {
-    res.json({ ok: removeClient(req.params.id) });
+    // Remove their leads too — otherwise the data lingers forever and could
+    // surface on someone else's dashboard.
+    const removedLeads = deleteLeadsByClient(req.params.id);
+    const ok = removeClient(req.params.id);
+    console.log(`[admin] deleted client ${req.params.id} (+${removedLeads} leads)`);
+    res.json({ ok, removedLeads });
   });
 
   return router;
 }
+
+
 
 

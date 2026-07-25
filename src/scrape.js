@@ -27,10 +27,21 @@ export async function fetchSiteText(url) {
       .replace(/&amp;/g, "&")
       .replace(/\s+/g, " ")
       .trim();
-    return html.slice(0, 4000); // a bit more than the demo, for better extraction
+    return sanitizeSiteText(html).slice(0, 4000);
   } catch {
     return "";
   }
+}
+
+// Website text is UNTRUSTED input that ends up inside the agent's system
+// prompt. Strip the delimiters we wrap it in so a page can't "close" the quoted
+// block and append its own instructions.
+export function sanitizeSiteText(text) {
+  return String(text || "")
+    .replace(/"""/g, '"" "')            // can't terminate our fenced block
+    .replace(/<\/?(system|assistant|user)>/gi, " ") // no fake role tags
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 // Ask the model to pull structured fields out of the site text. Returns an
@@ -91,3 +102,5 @@ function str(v) { return typeof v === "string" ? v.trim() : ""; }
 function arr(v) {
   return Array.isArray(v) ? v.map((x) => String(x).trim()).filter(Boolean) : [];
 }
+
+

@@ -1,7 +1,8 @@
 // db.js — dependency-free JSON-file store for captured leads.
 // Zero native modules = deploys cleanly anywhere (Render, Railway, Fly, a VPS).
 // Plenty for a solo operator's volume. Swap for Postgres later if you scale.
-import { readFileSync, writeFileSync, existsSync, mkdirSync } from "fs";
+import { existsSync, mkdirSync } from "fs";
+import { readJSON, writeJSON } from "./store.js";
 import { fileURLToPath } from "url";
 import { dirname, join } from "path";
 
@@ -12,14 +13,17 @@ const DATA_DIR = process.env.DATA_DIR || join(__dirname, "..", "data");
 const FILE = join(DATA_DIR, "leads.json");
 
 if (!existsSync(DATA_DIR)) mkdirSync(DATA_DIR, { recursive: true });
-if (!existsSync(FILE)) writeFileSync(FILE, JSON.stringify({ seq: 0, leads: [] }, null, 2));
 
+const EMPTY = { seq: 0, leads: [] };
+
+// NOTE: read() intentionally propagates a corrupt-file error instead of
+// returning empty — see store.js. Silently returning "no leads" is what would
+// let the next save wipe a client's history.
 function read() {
-  try { return JSON.parse(readFileSync(FILE, "utf8")); }
-  catch { return { seq: 0, leads: [] }; }
+  return readJSON(FILE, EMPTY);
 }
 function write(state) {
-  writeFileSync(FILE, JSON.stringify(state, null, 2));
+  writeJSON(FILE, state);
 }
 
 export function saveLead(lead) {
@@ -59,6 +63,20 @@ export function listLeadsByClient(clientId, limit = 200) {
   return state.leads.filter((l) => l.client_id === clientId).slice(-limit).reverse();
 }
 
-export default { saveLead, listLeads, listLeadsByClient };
+// Remove every lead belonging to a client. Called when a client is deleted so
+// their data doesn't linger (and can never surface under a re-used id).
+export function deleteLeadsByClient(clientId) {
+  if (!clientId) return 0;
+  const state = read();
+  const before = state.leads.length;
+  state.leads = state.leads.filter((l) => l.client_id !== clientId);
+  const removed = before - state.leads.length;
+  if (removed) write(state);
+  return removed;
+}
+
+export default { saveLead, listLeads, listLeadsByClient, deleteLeadsByClient };
+
+
 
 

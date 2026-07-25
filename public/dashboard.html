@@ -183,7 +183,7 @@
 
   async function load() {
     try {
-      const res = await fetch("/api/leads?pw=" + encodeURIComponent(pw));
+      const res = await fetch("/api/leads", { headers: { "x-admin-password": pw } });
       if (res.status === 401) { renderLogin(pw ? "Wrong password." : ""); return; }
       const leads = await res.json();
       document.body.style.background = "";
@@ -210,3 +210,5 @@
 </script>
 </body>
 </html>
+
+

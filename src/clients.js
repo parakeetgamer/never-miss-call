@@ -5,7 +5,8 @@
 // Each client record is a full business config PLUS a twilioNumber, so the call
 // path can look up "which business owns the number that was dialed."
 
-import { readFileSync, writeFileSync, existsSync, mkdirSync } from "fs";
+import { existsSync, mkdirSync } from "fs";
+import { readJSON, writeJSON } from "./store.js";
 import { randomBytes } from "crypto";
 import { fileURLToPath } from "url";
 import { dirname, join } from "path";
@@ -18,19 +19,16 @@ const FILE = join(DATA_DIR, "clients.json");
 
 function ensure() {
   if (!existsSync(DATA_DIR)) mkdirSync(DATA_DIR, { recursive: true });
-  if (!existsSync(FILE)) writeFileSync(FILE, "[]");
 }
+// Propagates a corrupt-file error rather than returning [] — returning empty
+// would let the next save silently delete every client.
 function load() {
   ensure();
-  try {
-    return JSON.parse(readFileSync(FILE, "utf8"));
-  } catch {
-    return [];
-  }
+  return readJSON(FILE, []);
 }
 function persist(list) {
   ensure();
-  writeFileSync(FILE, JSON.stringify(list, null, 2));
+  writeJSON(FILE, list);
 }
 
 // Keep only the last 10 digits so "+15035551212", "(503) 555-1212" all match.
@@ -126,10 +124,12 @@ export function saveClient(data) {
     return list[i];
   }
 
-  // new client — generate a unique id from the business name
-  let id = slugId(data.businessName);
-  let n = 1;
-  while (list.some((c) => c.id === id)) id = `${slugId(data.businessName)}-${++n}`;
+  // New client id = readable slug + random suffix. The random part matters:
+  // ids must NEVER be reused, or a future business with the same name would
+  // inherit the previous one's leads.
+  const base = slugId(data.businessName);
+  let id = `${base}-${randomBytes(3).toString("hex")}`;
+  while (list.some((c) => c.id === id)) id = `${base}-${randomBytes(3).toString("hex")}`;
 
   // Spread data FIRST, then pin the authoritative id/timestamps so a stray
   // `id: undefined` coming from the form can never clobber the generated id.
@@ -146,5 +146,7 @@ export function removeClient(id) {
   persist(next);
   return list.length !== next.length;
 }
+
+
 
 

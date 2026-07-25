@@ -16,6 +16,7 @@ import twilio from "twilio";
 import { startCallBridge } from "./realtime.js";
 import { listLeads, listLeadsByClient } from "./db.js";
 import { adminRouter } from "./admin.js";
+import { PASSWORD, checkAdmin } from "./auth.js";
 import { getClientByNumber, toBizConfig, getClientByToken } from "./clients.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -36,7 +37,7 @@ const env = {
 };
 const PUBLIC_HOST = process.env.PUBLIC_HOST || "localhost:3000";
 const PORT = process.env.PORT || 3000;
-const ADMIN_PASSWORD = process.env.DASHBOARD_PASSWORD || "changeme";
+const ADMIN_PASSWORD = PASSWORD;   // shared with admin.js via auth.js
 
 const twilioRest =
   process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN
@@ -97,8 +98,33 @@ async function buildDemoBiz({ businessName, ownerName, website, trade, city }) {
   };
 }
 
+// ---- Twilio request verification ----
+// Without this, ANY unauthenticated POST to /incoming-call returns valid TwiML
+// and can open a media stream — i.e. a stranger can burn your OpenAI balance.
+// Twilio signs every webhook; we verify that signature.
+// Kill switch: set SKIP_TWILIO_VALIDATION=true if this ever blocks real calls.
+function verifyTwilio(req, res, next) {
+  const token = process.env.TWILIO_AUTH_TOKEN;
+  if (!token || process.env.SKIP_TWILIO_VALIDATION === "true") {
+    return next(); // not configured (local dev) — nothing to verify against
+  }
+  const signature = req.get("X-Twilio-Signature") || "";
+  const url = `https://${PUBLIC_HOST}${req.originalUrl}`;
+  let ok = false;
+  try {
+    ok = twilio.validateRequest(token, signature, url, req.body || {});
+  } catch {
+    ok = false;
+  }
+  if (!ok) {
+    console.warn(`[server] REJECTED unsigned request to ${req.originalUrl}`);
+    return res.status(403).type("text/plain").send("Forbidden");
+  }
+  next();
+}
+
 // ---- Twilio voice webhook: pass the DIALED number so we can route to the right client ----
-app.post("/incoming-call", (req, res) => {
+app.post("/incoming-call", verifyTwilio, (req, res) => {
   const from = req.body?.From || "";
   const to = req.body?.To || "";
   const twiml = `<?xml version="1.0" encoding="UTF-8"?>
@@ -115,12 +141,7 @@ app.post("/incoming-call", (req, res) => {
 
 // ---- demo control (password-gated) ----
 function checkAuth(req, res) {
-  const pw = req.body?.pw || req.query?.pw;
-  if (pw !== ADMIN_PASSWORD) {
-    res.status(401).json({ ok: false, error: "unauthorized" });
-    return false;
-  }
-  return true;
+  return checkAdmin(req, res);
 }
 
 app.post("/api/demo/activate", async (req, res) => {
@@ -168,7 +189,7 @@ app.get("/healthz", (_req, res) =>
 
 // ---- leads dashboard ----
 app.get("/api/leads", (req, res) => {
-  if (req.query.pw !== ADMIN_PASSWORD) return res.status(401).json({ error: "unauthorized" });
+  if (!checkAdmin(req, res)) return;
   res.json(listLeads(200));
 });
 
@@ -196,7 +217,7 @@ const server = app.listen(PORT, () => {
   console.log(`\n  Receptionist server on port ${PORT}`);
   console.log(`  Demo control:      http://localhost:${PORT}/admin`);
   console.log(`  Client onboarding: http://localhost:${PORT}/clients`);
-  console.log(`  Dashboard:         http://localhost:${PORT}/  (password: ${ADMIN_PASSWORD})`);
+  console.log(`  Dashboard:         http://localhost:${PORT}/`);
   console.log(`  Demo number: ${TWILIO_NUMBER || "(set TWILIO_PHONE_NUMBER)"}`);
   console.log(`  Model: ${env.model}  Mode: ${env.mode}  Voice: ${env.voice}\n`);
 });
@@ -220,6 +241,14 @@ wss.on("connection", (twilioWs, req) => {
     urlTo = new URL(req.url, "http://x").searchParams.get("to") || "";
   } catch {}
 
+  // If Twilio never sends "start", nothing will ever close this socket.
+  const startTimeout = setTimeout(() => {
+    if (!handedOff) {
+      console.warn("[server] no start event within 15s — closing idle stream");
+      try { twilioWs.close(); } catch {}
+    }
+  }, 15000);
+
   let handedOff = false;
   function onFirstMessages(raw) {
     if (handedOff) return;
@@ -232,6 +261,7 @@ wss.on("connection", (twilioWs, req) => {
     if (msg.event !== "start") return; // Twilio sends "connected" first — ignore it
 
     handedOff = true;
+    clearTimeout(startTimeout);
     twilioWs.off("message", onFirstMessages);
 
     const paramTo = msg.start?.customParameters?.to || "";
@@ -251,5 +281,7 @@ wss.on("connection", (twilioWs, req) => {
   }
   twilioWs.on("message", onFirstMessages);
 });
+
+
 
 
