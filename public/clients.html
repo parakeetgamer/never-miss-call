@@ -129,6 +129,39 @@
   .hitem{background:var(--card);border:1px solid var(--line);border-radius:9px;padding:11px 12px;margin-bottom:8px}
   .hitem .when{font-family:var(--mono);font-size:11px;color:var(--muted);margin-bottom:5px}
   .hitem .txt{font-size:14px;line-height:1.45;white-space:pre-wrap}
+
+  /* live call script */
+  .scriptbar{display:flex;align-items:center;justify-content:space-between;gap:10px;
+    padding:11px 0 14px;border-bottom:1px solid var(--line);margin-bottom:16px}
+  .scriptbar .who{font-weight:700;font-size:15px;line-height:1.25}
+  .scriptbar .who span{display:block;font-family:var(--mono);font-size:11px;color:var(--muted);
+    letter-spacing:.14em;text-transform:uppercase;margin-top:3px}
+  .stage{font-family:var(--mono);font-size:11px;letter-spacing:.16em;text-transform:uppercase;
+    color:var(--amber);font-weight:700;margin-bottom:9px}
+  .stage.close{color:var(--ok)} .stage.schedule{color:var(--amber)} .stage.exit{color:var(--muted)}
+  .sayblock{background:var(--panel);border:1px solid var(--line);border-left:4px solid var(--amber);
+    border-radius:14px;padding:19px}
+  .sayblock.close{border-left-color:var(--ok)}
+  .sayblock.exit{border-left-color:var(--muted)}
+  .saylabel{font-family:var(--mono);font-size:10.5px;letter-spacing:.2em;text-transform:uppercase;
+    color:var(--muted);margin-bottom:9px}
+  .sayline{font-size:21px;line-height:1.45;font-weight:600;letter-spacing:-.01em}
+  .why{display:flex;gap:9px;margin-top:15px;padding-top:14px;border-top:1px solid var(--line);
+    font-size:13.5px;line-height:1.5;color:var(--muted)}
+  .why b{color:var(--amber);flex-shrink:0}
+  .theysay{font-family:var(--mono);font-size:11px;letter-spacing:.16em;text-transform:uppercase;
+    color:var(--muted);margin:20px 0 9px}
+  .opt{display:block;width:100%;text-align:left;background:var(--card);border:1px solid var(--line);
+    color:var(--ink);border-radius:11px;padding:14px 15px;margin-bottom:9px;font-size:15.5px;
+    font-weight:600;line-height:1.35}
+  .opt:active{transform:scale(.995);border-color:var(--amber)}
+  .nextlist{margin:16px 0 0;padding:0;list-style:none}
+  .nextlist li{background:var(--card);border:1px solid var(--line);border-radius:9px;
+    padding:11px 13px;margin-bottom:7px;font-size:14.5px;line-height:1.4}
+  .signals{margin-top:22px;border:1px dashed var(--line);border-radius:11px;padding:14px}
+  .signals .t{font-family:var(--mono);font-size:10.5px;letter-spacing:.16em;text-transform:uppercase;
+    color:var(--ok);font-weight:700;margin-bottom:8px}
+  .signals li{font-size:13.5px;color:var(--muted);line-height:1.5;margin-bottom:4px}
   .empty b{color:var(--ink);display:block;margin-bottom:5px;font-size:16px}
 </style>
 </head>
@@ -154,6 +187,7 @@
   <div class="wrap" id="view"></div>
 </div>
 
+<script src="/script-tree.js"></script>
 <script>
 const $ = (s,r=document)=>r.querySelector(s);
 let pw = sessionStorage.getItem("adminpw") || "";
@@ -510,7 +544,8 @@ async function showProspect(id){
     <button class="btn-primary" style="margin-top:10px" id="saveCall" onclick="submitCall()">Submit — mark as called</button>
     <div class="err" id="callErr"></div>
 
-    <button class="btn-ghost" style="width:100%;margin-top:18px" onclick="onboardFromProspect()">→ Onboard ${esc(p.businessName)} as a client</button>
+    <button class="btn-primary" style="margin-top:16px" onclick="openScript()">📋 Open live call script</button>
+    <button class="btn-ghost" style="width:100%;margin-top:10px" onclick="onboardFromProspect()">→ Onboard ${esc(p.businessName)} as a client</button>
 
     ${hist?`<div class="history"><div class="stepnum">Call history</div>${hist}</div>`:""}`;
 }
@@ -538,6 +573,73 @@ function onboardFromProspect(){
   resetWiz();
   wiz.prospect = currentProspect;
   step1();
+}
+
+
+// ====================== LIVE CALL SCRIPT ======================
+let scriptStack = [];          // history for the Back button
+let scriptProspect = null;
+
+function fill(t){
+  const biz = (scriptProspect && scriptProspect.businessName) || "your shop";
+  const own = (scriptProspect && scriptProspect.ownerName) || "";
+  return String(t).replace(/\{BIZ\}/g, biz).replace(/\{OWNER\}/g, own);
+}
+
+function openScript(){
+  if(!currentProspect) return;
+  scriptProspect = currentProspect;
+  scriptStack = [];
+  renderScript("start");
+}
+
+function scriptGo(id){
+  const cur = scriptStack[scriptStack.length-1];
+  if(cur && cur !== id) scriptStack.push(id); else if(!cur) scriptStack.push(id);
+  renderScript(id, true);
+}
+
+function scriptBack(){
+  scriptStack.pop();
+  const prev = scriptStack[scriptStack.length-1];
+  if(prev) renderScript(prev); else renderScript("start");
+}
+
+function renderScript(id, pushed){
+  const n = window.CALL_SCRIPT[id];
+  if(!n){ showProspect(scriptProspect.id); return; }
+  if(!pushed && scriptStack[scriptStack.length-1] !== id) scriptStack.push(id);
+
+  const kind = n.kind || "";
+  const opts = (n.options||[]).map((o,i)=>
+    `<button class="opt" onclick="scriptGo('${o.goto}')">${esc(fill(o.label))}</button>`).join("");
+  const next = n.next
+    ? `<div class="theysay">Do this now</div><ul class="nextlist">${n.next.map(x=>`<li>${esc(fill(x))}</li>`).join("")}</ul>`
+    : "";
+  const signals = id==="start"
+    ? `<div class="signals"><div class="t">Buying signals — stop selling, close</div><ul style="margin:0;padding-left:16px">
+        ${window.BUYING_SIGNALS.map(x=>`<li>${esc(x)}</li>`).join("")}</ul></div>` : "";
+
+  $("#view").innerHTML = `
+    <div class="scriptbar">
+      <div class="who">${esc(scriptProspect.businessName)}
+        <span>Live call script</span></div>
+      <div style="display:flex;gap:7px">
+        ${scriptStack.length>1?`<button class="btn-ghost btn-sm" onclick="scriptBack()">‹ Back</button>`:""}
+        <button class="btn-ghost btn-sm" onclick="showProspect('${scriptProspect.id}')">Close</button>
+      </div>
+    </div>
+
+    <div class="stage ${kind}">${esc(n.stage||"")}</div>
+    <div class="sayblock ${kind}">
+      <div class="saylabel">Say this</div>
+      <div class="sayline">${esc(fill(n.say))}</div>
+      ${n.why?`<div class="why"><b>Why</b><span>${esc(fill(n.why))}</span></div>`:""}
+    </div>
+    ${next}
+    ${opts?`<div class="theysay">${n.next?"Then":"What do they say?"}</div>${opts}`:""}
+    ${signals}`;
+  window.scrollTo(0,0);
 }
 
 // ---------- client list ----------
