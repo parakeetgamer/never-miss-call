@@ -199,7 +199,13 @@ app.get("/api/leads", (req, res) => {
 app.get("/d/:token/leads", (req, res) => {
   const client = getClientByToken(req.params.token);
   if (!client) return res.status(404).json({ error: "not found" });
-  res.json({ business: client.businessName, leads: listLeadsByClient(client.id, 200) });
+  res.json({
+    business: client.businessName,
+    owner: client.ownerName || "",
+    trade: client.trade || "",
+    city: client.city || client.serviceArea || "",
+    leads: listLeadsByClient(client.id, 200),
+  });
 });
 // The dashboard page itself (static file; it reads its own token from the URL).
 app.get("/d/:token", (req, res) => {
