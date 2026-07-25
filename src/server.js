@@ -208,16 +208,48 @@ wss.on("connection", (twilioWs, req) => {
     twilioWs.close();
     return;
   }
-  // Which number was dialed? Route to that client; otherwise fall back to the demo.
-  let dialed = "";
+
+  // The dialed number decides WHICH business answers. Twilio sends it two ways:
+  //   1. <Parameter name="to"> -> arrives in the "start" event's customParameters
+  //   2. the ?to= query string on the stream URL
+  // (1) is the reliable one, but it only arrives on the first message — so we
+  // wait for "start", pick the client, then hand that same message to the
+  // bridge so nothing is lost.
+  let urlTo = "";
   try {
-    dialed = new URL(req.url, "http://x").searchParams.get("to") || "";
+    urlTo = new URL(req.url, "http://x").searchParams.get("to") || "";
   } catch {}
-  const client = getClientByNumber(dialed);
-  const biz = client ? toBizConfig(client) : activeDemo;
-  if (client) console.log(`[call] routed to client "${biz.businessName}" (dialed ${dialed})`);
-  else console.log(`[call] no client for ${dialed || "?"} — using demo "${biz.businessName}"`);
-  startCallBridge(twilioWs, biz, env);
+
+  let handedOff = false;
+  function onFirstMessages(raw) {
+    if (handedOff) return;
+    let msg;
+    try {
+      msg = JSON.parse(raw.toString());
+    } catch {
+      return;
+    }
+    if (msg.event !== "start") return; // Twilio sends "connected" first — ignore it
+
+    handedOff = true;
+    twilioWs.off("message", onFirstMessages);
+
+    const paramTo = msg.start?.customParameters?.to || "";
+    const dialed = paramTo || urlTo;
+    const client = getClientByNumber(dialed);
+    const biz = client ? toBizConfig(client) : activeDemo;
+
+    if (client) {
+      console.log(`[call] routed to client "${biz.businessName}" (dialed ${dialed})`);
+    } else {
+      console.log(
+        `[call] no client for "${dialed || "(none)"}" — using demo "${biz.businessName}" ` +
+          `[param="${paramTo}" url="${urlTo}"]`
+      );
+    }
+    startCallBridge(twilioWs, biz, env, msg);
+  }
+  twilioWs.on("message", onFirstMessages);
 });
 
 

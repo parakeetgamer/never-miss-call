@@ -88,7 +88,7 @@ function buildSessionUpdate(biz, { mode, voice }) {
 /**
  * Start the bridge for a single call.
  */
-export function startCallBridge(twilioWs, biz, env) {
+export function startCallBridge(twilioWs, biz, env, initialMsg) {
   let streamSid = null;
   let callSid = null;
   let callerNumber = null;
@@ -412,14 +412,10 @@ export function startCallBridge(twilioWs, biz, env) {
   }
 
   // ---- Twilio -> us ----
-  twilioWs.on("message", (raw) => {
-    let msg;
-    try {
-      msg = JSON.parse(raw.toString());
-    } catch {
-      return;
-    }
-
+  // server.js consumes the first "start" event (to learn which number was
+  // dialed and pick the right client), then hands it to us as initialMsg so
+  // nothing is lost. Both paths go through the same handler.
+  function handleTwilioMessage(msg) {
     switch (msg.event) {
       case "start":
         streamSid = msg.start.streamSid;
@@ -450,7 +446,20 @@ export function startCallBridge(twilioWs, biz, env) {
       default:
         break;
     }
+  }
+
+  twilioWs.on("message", (raw) => {
+    let msg;
+    try {
+      msg = JSON.parse(raw.toString());
+    } catch {
+      return;
+    }
+    handleTwilioMessage(msg);
   });
+
+  // replay the start event that was read before this bridge existed
+  if (initialMsg) handleTwilioMessage(initialMsg);
 
   twilioWs.on("close", () => closeAll());
   twilioWs.on("error", (e) => {

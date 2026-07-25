@@ -6,7 +6,9 @@ import { fileURLToPath } from "url";
 import { dirname, join } from "path";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const DATA_DIR = join(__dirname, "..", "data");
+// DATA_DIR can point at a mounted persistent disk (e.g. /var/data on Render)
+// so clients and leads survive deploys/restarts. Falls back to ./data locally.
+const DATA_DIR = process.env.DATA_DIR || join(__dirname, "..", "data");
 const FILE = join(DATA_DIR, "leads.json");
 
 if (!existsSync(DATA_DIR)) mkdirSync(DATA_DIR, { recursive: true });
