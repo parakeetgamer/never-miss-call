@@ -39,12 +39,16 @@ function buildTurnDetection() {
       interrupt_response: true,
     };
   }
-  const ms = Number(process.env.VAD_SILENCE_MS || 500);
+  const ms = Number(process.env.VAD_SILENCE_MS || 620);
+  const threshold = Number(process.env.VAD_THRESHOLD || 0.6);
   return {
     type: "server_vad",
-    silence_duration_ms: Number.isFinite(ms) ? ms : 500,
-    prefix_padding_ms: 200,
-    threshold: 0.5,
+    silence_duration_ms: Number.isFinite(ms) ? ms : 620,
+    prefix_padding_ms: 250,
+    // Higher threshold = less likely to mistake background noise (or the echo
+    // of our own voice) for the caller speaking. Too low and the bot keeps
+    // interrupting itself, which shreds the conversation.
+    threshold: Number.isFinite(threshold) ? threshold : 0.6,
     interrupt_response: true,
   };
 }
@@ -94,6 +98,14 @@ function buildSessionUpdate(biz, { mode, voice }) {
       audio: {
         input: {
           format: { type: "audio/pcmu" },
+          // Phone lines are noisy; without this the VAD fires on background
+          // sound and the bot talks over itself. near_field = handset,
+          // far_field = speakerphone/room. Set NOISE_REDUCTION=off to remove
+          // the field entirely if the API ever rejects it (a rejected
+          // session.update means SILENT calls, so this is the escape hatch).
+          ...(process.env.NOISE_REDUCTION === "off"
+            ? {}
+            : { noise_reduction: { type: process.env.NOISE_REDUCTION || "near_field" } }),
           // semantic_vad waits for the caller to actually finish a thought
           // instead of a fixed silence timer, so it stops cutting people off
           // mid-sentence. Eagerness sets the MAX wait before deciding they're
@@ -411,8 +423,8 @@ export function startCallBridge(twilioWs, biz, env, initialMsg) {
         const missing = [
           !haveName ? "the caller's name" : null,
           !haveNumber ? "a callback number" : null,
-          !haveSituation ? "a description of their situation" : null,
-          bookedJob && !haveAddress ? "the service address (street address where the work is needed)" : null,
+          !haveSituation ? "what they need help with" : null,
+          bookedJob && !haveAddress ? "the service address" : null,
         ].filter(Boolean).join(", ");
         console.log(`[call] end_call BLOCKED — still missing: ${missing}`);
         openAi.send(
@@ -424,7 +436,12 @@ export function startCallBridge(twilioWs, biz, env, initialMsg) {
               output: JSON.stringify({
                 ok: false,
                 error:
-                  `Do NOT hang up yet. You still need: ${missing}. Stay on the line, warmly ask the caller for the missing details, then call book_job. Only end the call once you have their name, number, and situation.`,
+                  `Do NOT hang up — this caller's details have NOT been saved yet. ` +
+                  `You have not successfully called book_job (or take_message). ` +
+                  `If the caller ALREADY told you ${missing}, do NOT ask them again — ` +
+                  `just call book_job right now with what they gave you. ` +
+                  `Only ask the caller for something if you genuinely never got it. ` +
+                  `Once the tool call succeeds you may say goodbye and end the call.`,
               }),
             },
           })
