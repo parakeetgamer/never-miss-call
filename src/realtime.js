@@ -103,7 +103,8 @@ export function startCallBridge(twilioWs, biz, env, initialMsg) {
   let activeItemId = null;      // id of the assistant message item streaming audio
   let playedAudioMs = 0;        // ms of that item's audio actually sent to the caller
   let leadBooked = false;       // has a job/message been saved this call yet?
-  let pendingHangup = false;    // goodbye is being spoken; hang up once it lands
+  let pendingHangup = false;    // end_call approved — a goodbye is owed
+  let goodbyeStarted = false;   // has the goodbye response actually been fired?
   let haveName = false;         // captured caller's name?
   let haveNumber = false;       // captured callback number?
   let haveSituation = false;    // captured the problem/reason?
@@ -128,6 +129,15 @@ export function startCallBridge(twilioWs, biz, env, initialMsg) {
       responseActive = true;
       openAi.send(JSON.stringify({ type: "response.create" }));
     }
+  }
+
+  // Fire the closing line. Called once the line is free — a tool call happens
+  // INSIDE an active response, so we can't just ask for a new one immediately.
+  function startGoodbye() {
+    if (goodbyeStarted) return;
+    goodbyeStarted = true;
+    responseActive = true;
+    openAi.send(JSON.stringify({ type: "response.create" }));
   }
 
   const openAi = new WebSocket(
@@ -200,7 +210,15 @@ export function startCallBridge(twilioWs, biz, env, initialMsg) {
         activeItemId = null;
         playedAudioMs = 0;
         if (pendingHangup) {
-          // the goodbye just finished generating — let it finish PLAYING, then end
+          if (!goodbyeStarted) {
+            // The response that contained end_call just ended, so the line is
+            // finally free — NOW say goodbye. (Previously we hung up here and
+            // the queued goodbye was silently discarded.)
+            console.log("[call] saying goodbye before hangup");
+            startGoodbye();
+            break;
+          }
+          // the goodbye itself just finished generating — let it finish PLAYING
           console.log("[call] goodbye delivered — hanging up");
           setTimeout(() => hangUp(), GOODBYE_FLUSH_MS);
           break;
@@ -394,7 +412,9 @@ export function startCallBridge(twilioWs, biz, env, initialMsg) {
         })
       );
       pendingHangup = true;
-      requestResponse();            // <-- this is what makes it actually speak
+      // If nothing is currently speaking, say it now; otherwise response.done
+      // will kick it off as soon as the current response finishes.
+      if (!responseActive) startGoodbye();
       console.log(`[call] end_call allowed (${args.reason || "no reason"}) — saying goodbye`);
       setTimeout(() => hangUp(), HANGUP_MAX_MS);   // backstop
       return;
