@@ -83,6 +83,52 @@
   .client .meta{font-family:var(--mono);font-size:12px;color:var(--muted);margin-top:3px}
   .client .actions{display:flex;gap:8px;flex-shrink:0}
   .empty{border:1px dashed var(--line);border-radius:12px;padding:34px 20px;text-align:center;color:var(--muted)}
+
+  /* tabs */
+  .tabs{display:flex;gap:6px;padding:0 16px;border-bottom:1px solid var(--line);
+    position:sticky;top:57px;background:var(--bg);z-index:19}
+  .tabs button{background:none;border:0;border-bottom:2px solid transparent;color:var(--muted);
+    padding:13px 6px;margin-right:14px;font-size:15px;font-weight:700;border-radius:0}
+  .tabs button.on{color:var(--amber);border-bottom-color:var(--amber)}
+  .tabs .count{font-family:var(--mono);font-size:12px;opacity:.7;margin-left:5px}
+
+  /* prospect cards */
+  .finder{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px;margin-bottom:14px}
+  .finder .row2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  @media(max-width:520px){.finder .row2{grid-template-columns:1fr}}
+  .finder input{padding:11px;font-size:15px}
+  .chips{display:flex;gap:7px;overflow-x:auto;padding:2px 0 12px;-webkit-overflow-scrolling:touch}
+  .chips button{flex-shrink:0;background:var(--card);border:1px solid var(--line);color:var(--muted);
+    padding:7px 13px;font-size:13px;border-radius:999px;font-weight:600}
+  .chips button.on{background:var(--amber);color:#1a1405;border-color:var(--amber)}
+  .pcard{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px 15px;
+    margin-bottom:10px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:12px}
+  .pcard:active{transform:scale(.995)}
+  .pcard .nm{font-weight:700;font-size:16px;line-height:1.3}
+  .pcard .sub{font-family:var(--mono);font-size:12px;color:var(--muted);margin-top:4px}
+  .badge{flex-shrink:0;font-family:var(--mono);font-size:10.5px;letter-spacing:.09em;text-transform:uppercase;
+    font-weight:700;padding:5px 9px;border-radius:999px;border:1px solid var(--line);color:var(--muted)}
+  .badge.new{color:var(--amber);border-color:var(--amber)}
+  .badge.callback{color:#e0a53f}
+  .badge.demo{color:#8fbf6b;border-color:var(--ok)}
+  .badge.won{background:var(--ok);color:#12200a;border-color:var(--ok)}
+  .badge.dead{opacity:.5}
+
+  /* prospect detail */
+  .pinfo{display:grid;gap:7px;margin:14px 0;font-size:14.5px}
+  .pinfo div{display:flex;gap:10px}
+  .pinfo b{color:var(--muted);font-weight:600;min-width:74px;flex-shrink:0}
+  a.callbtn{display:block;background:var(--ok);color:#12200a;text-decoration:none;text-align:center;
+    font-weight:800;font-size:19px;padding:17px;border-radius:12px;margin:14px 0}
+  a.callbtn:active{transform:translateY(1px)}
+  .outcomes{display:flex;flex-wrap:wrap;gap:7px;margin:10px 0 4px}
+  .outcomes button{background:var(--card);border:1px solid var(--line);color:var(--ink);
+    padding:9px 13px;font-size:13.5px;border-radius:9px;font-weight:600}
+  .outcomes button.on{background:var(--amber);color:#1a1405;border-color:var(--amber)}
+  .history{margin-top:18px;border-top:1px solid var(--line);padding-top:14px}
+  .hitem{background:var(--card);border:1px solid var(--line);border-radius:9px;padding:11px 12px;margin-bottom:8px}
+  .hitem .when{font-family:var(--mono);font-size:11px;color:var(--muted);margin-bottom:5px}
+  .hitem .txt{font-size:14px;line-height:1.45;white-space:pre-wrap}
   .empty b{color:var(--ink);display:block;margin-bottom:5px;font-size:16px}
 </style>
 </head>
@@ -98,9 +144,13 @@
 
 <div id="app" class="hide">
   <header>
-    <div class="brand">Never Miss a Call · <span>Onboarding</span></div>
-    <button class="btn-primary btn-sm" id="newBtn" style="width:auto">+ Onboard a client</button>
+    <div class="brand">Never Miss a Call</div>
+    <button class="btn-primary btn-sm" id="newBtn" style="width:auto">+ Onboard</button>
   </header>
+  <div class="tabs">
+    <button id="tabCalls" class="on" onclick="showCallList()">Call list<span class="count" id="cCalls"></span></button>
+    <button id="tabClients" onclick="showList()">Clients<span class="count" id="cClients"></span></button>
+  </div>
   <div class="wrap" id="view"></div>
 </div>
 
@@ -122,11 +172,11 @@ $("#loginBtn").onclick = async () => {
   if(r.ok){ pw=val; sessionStorage.setItem("adminpw",pw); enter(); } else $("#loginErr").textContent="Wrong password.";
 };
 $("#pw").addEventListener("keydown",e=>{if(e.key==="Enter")$("#loginBtn").click()});
-function enter(){ $("#login").classList.add("hide"); $("#app").classList.remove("hide"); showList(); }
+function enter(){ $("#login").classList.add("hide"); $("#app").classList.remove("hide"); showCallList(); }
 
 // ---------- wizard state ----------
 let wiz = {};
-function resetWiz(){ wiz = { num:"", webhookDone:false, client:null }; }
+function resetWiz(){ wiz = { num:"", webhookDone:false, client:null, prospect:null }; }
 
 const TOTAL = 6;
 function chrome(step, title, lead){
@@ -179,7 +229,11 @@ function step2(){
 
 // ---------- STEP 3 ----------
 function step3(){
-  $("#view").innerHTML = chrome(3,"Add their business info","Paste their website first — it fills most of this for you.") + `
+  const pr = wiz.prospect || {};
+  $("#view").innerHTML = chrome(3,"Add their business info",
+    pr.businessName
+      ? `Carried over from your call list — check it and fill in the rest.`
+      : "Paste their website first — it fills most of this for you.") + `
     <div class="action">
       <div class="what">⚡ Autofill (do this first)</div>
       <input id="f_website" placeholder="their website — e.g. davesplumbing.com" inputmode="url"/>
@@ -201,6 +255,13 @@ function step3(){
     <textarea id="f_bookingQuestions" placeholder="their name&#10;the best callback number&#10;the service address&#10;what they need help with&#10;how urgent it is"></textarea>
     <div class="err" id="formErr"></div>
     ${nav("step2","Save & continue ›","saveClient", false)}`;
+
+  // prefill anything we already know from the call list
+  if (pr.businessName) $("#f_businessName").value = pr.businessName;
+  if (pr.trade)        $("#f_trade").value        = pr.trade;
+  if (pr.city)         $("#f_city").value         = pr.city;
+  if (pr.city)         $("#f_serviceArea").value  = pr.city;
+  if (pr.website)      $("#f_website").value      = pr.website;
 }
 
 async function runAutofill(){
@@ -237,6 +298,7 @@ async function saveClient(){
     services: $("#f_services").value, doesNotDo: $("#f_doesNotDo").value,
     bookingQuestions: $("#f_bookingQuestions").value,
     website: $("#f_website").value, websiteInfo: $("#f_websiteInfo").value,
+    prospectId: (wiz.prospect && wiz.prospect.id) || undefined,
   };
   const r = await api("/clients/api/clients",{method:"POST",body:JSON.stringify(payload)});
   const d = await r.json();
@@ -312,8 +374,175 @@ function step6(){
     <div class="navrow"><button class="btn-primary" onclick="showList()">Done</button></div>`;
 }
 
+
+// ============================ CALL LIST ============================
+let prospectFilter = "all";
+let prospectCache = [];
+let canSearchWeb = false;
+
+function setTab(which){
+  document.getElementById("tabCalls").className  = which==="calls"   ? "on" : "";
+  document.getElementById("tabClients").className= which==="clients" ? "on" : "";
+}
+
+const STATUS_LABEL = { new:"Not called", called:"Called", callback:"Call back",
+                       demo:"Demo booked", won:"Client", dead:"Not interested" };
+
+async function showCallList(){
+  setTab("calls");
+  const r = await api("/clients/api/prospects");
+  if(r.status===401){ sessionStorage.removeItem("adminpw"); location.reload(); return; }
+  const d = await r.json();
+  prospectCache = d.prospects || [];
+  canSearchWeb = !!d.canSearchWeb;
+  const st = d.stats || {};
+  $("#cCalls").textContent = st.new != null ? st.new : "";
+  renderCallList(st);
+}
+
+function renderCallList(st){
+  const counts = st || {};
+  const chip = (key,label) => `<button class="${prospectFilter===key?"on":""}" onclick="prospectFilter='${key}';renderCallList()">${label}${counts[key]!=null?` (${counts[key]})`:""}</button>`;
+  const list = prospectCache.filter(p => prospectFilter==="all" || p.status===prospectFilter);
+
+  const finder = canSearchWeb
+    ? `<div class="finder">
+         <div class="what" style="font-weight:700;margin-bottom:8px">Find more businesses</div>
+         <div class="row2">
+           <input id="findTrade" placeholder="plumbers" value="plumbers"/>
+           <input id="findArea" placeholder="Vancouver WA"/>
+         </div>
+         <button class="btn-primary" style="margin-top:9px" id="findBtn" onclick="findMore()">Search the web</button>
+         <div class="err" id="findStatus" style="color:var(--muted)"></div>
+       </div>`
+    : `<div class="finder">
+         <div style="font-weight:700;margin-bottom:6px">Add a business</div>
+         <div class="row2">
+           <input id="mName" placeholder="Business name"/>
+           <input id="mPhone" placeholder="Phone" inputmode="tel"/>
+         </div>
+         <div class="row2" style="margin-top:8px">
+           <input id="mTrade" placeholder="plumbing"/>
+           <input id="mCity" placeholder="Vancouver, WA"/>
+         </div>
+         <button class="btn-primary" style="margin-top:9px" onclick="addManual()">Add to call list</button>
+         <div class="hint">Set GOOGLE_PLACES_API_KEY to pull businesses from the web automatically.</div>
+         <div class="err" id="findStatus" style="color:var(--muted)"></div>
+       </div>`;
+
+  const rows = list.length ? list.map(p => `
+      <div class="pcard" onclick="showProspect('${p.id}')">
+        <div>
+          <div class="nm">${esc(p.businessName)}</div>
+          <div class="sub">${esc(p.phone||"no phone")}${p.city?" · "+esc(p.city):""}${p.reviewCount!=null?` · ${p.reviewCount} reviews`:""}</div>
+        </div>
+        <span class="badge ${p.status}">${STATUS_LABEL[p.status]||p.status}</span>
+      </div>`).join("")
+    : `<div class="empty"><b>Nothing here.</b>${prospectFilter==="all"?"Add businesses above to start calling.":"No businesses with that status."}</div>`;
+
+  $("#view").innerHTML = finder + `
+    <div class="chips">
+      ${chip("all","All")}${chip("new","Not called")}${chip("callback","Call back")}
+      ${chip("called","Called")}${chip("demo","Demo")}${chip("won","Clients")}${chip("dead","Dead")}
+    </div>` + rows;
+}
+
+async function findMore(){
+  const trade = $("#findTrade").value.trim(), area = $("#findArea").value.trim();
+  if(!trade || !area){ $("#findStatus").textContent="Enter a trade and an area."; return; }
+  $("#findBtn").disabled = true;
+  $("#findStatus").style.color="var(--muted)";
+  $("#findStatus").textContent = "Searching…";
+  try{
+    const r = await api("/clients/api/prospects/search",{method:"POST",body:JSON.stringify({trade,area})});
+    const d = await r.json();
+    $("#findBtn").disabled = false;
+    if(!r.ok){ $("#findStatus").style.color="var(--danger)"; $("#findStatus").textContent=d.error||"Search failed."; return; }
+    $("#findStatus").style.color="var(--ok)";
+    $("#findStatus").textContent = `Found ${d.found}, added ${d.added} new.`;
+    showCallList();
+  }catch(e){ $("#findBtn").disabled=false; $("#findStatus").textContent="Search failed."; }
+}
+
+async function addManual(){
+  const body = { businessName:$("#mName").value, phone:$("#mPhone").value,
+                 trade:$("#mTrade").value, city:$("#mCity").value, source:"manual" };
+  if(!body.businessName.trim()){ $("#findStatus").textContent="Business name required."; return; }
+  const r = await api("/clients/api/prospects",{method:"POST",body:JSON.stringify(body)});
+  const d = await r.json();
+  if(!r.ok){ $("#findStatus").style.color="var(--danger)"; $("#findStatus").textContent=d.error||"Failed."; return; }
+  showCallList();
+}
+
+let currentProspect = null;
+let pendingStatus = null;
+
+async function showProspect(id){
+  const r = await api("/clients/api/prospects/"+id);
+  if(!r.ok){ showCallList(); return; }
+  const p = await r.json();
+  currentProspect = p; pendingStatus = null;
+  const tel = "tel:"+(p.phone||"").replace(/[^+\d]/g,"");
+  const hist = (p.calls||[]).map(c=>`
+      <div class="hitem">
+        <div class="when">${new Date(c.at).toLocaleString([], {month:"short",day:"numeric",hour:"numeric",minute:"2-digit"})} · ${STATUS_LABEL[c.status]||c.status}</div>
+        <div class="txt">${esc(c.notes)}</div>
+      </div>`).join("");
+
+  $("#view").innerHTML = `
+    <button class="btn-ghost btn-sm" onclick="showCallList()">‹ Back to call list</button>
+    <h2 class="step" style="margin-top:14px">${esc(p.businessName)}</h2>
+    <div class="pinfo">
+      <div><b>Phone</b> ${esc(p.phone||"—")}</div>
+      <div><b>Trade</b> ${esc(p.trade||"—")}</div>
+      <div><b>Where</b> ${esc(p.address||p.city||"—")}</div>
+      <div><b>Reviews</b> ${p.rating!=null?`${p.rating}★ · ${p.reviewCount} reviews`:"—"}</div>
+      ${p.website?`<div><b>Website</b> <a href="${esc(p.website)}" target="_blank" style="color:var(--amber)">${esc(p.website)}</a></div>`:""}
+      <div><b>Status</b> ${STATUS_LABEL[p.status]||p.status}${p.lastCalledAt?` · last called ${new Date(p.lastCalledAt).toLocaleDateString()}`:""}</div>
+    </div>
+    ${p.phone?`<a class="callbtn" href="${tel}">📞 Call ${esc(p.phone)}</a>`:""}
+
+    <label>How did it go?</label>
+    <textarea id="callNotes" placeholder="What they said, objections, when to follow up…" style="min-height:110px"></textarea>
+    <div class="outcomes" id="outcomes">
+      ${["called","callback","demo","dead"].map(k=>`<button data-s="${k}" onclick="pickStatus('${k}')">${STATUS_LABEL[k]}</button>`).join("")}
+    </div>
+    <button class="btn-primary" style="margin-top:10px" id="saveCall" onclick="submitCall()">Submit — mark as called</button>
+    <div class="err" id="callErr"></div>
+
+    <button class="btn-ghost" style="width:100%;margin-top:18px" onclick="onboardFromProspect()">→ Onboard ${esc(p.businessName)} as a client</button>
+
+    ${hist?`<div class="history"><div class="stepnum">Call history</div>${hist}</div>`:""}`;
+}
+
+window.pickStatus = (k)=>{
+  pendingStatus = pendingStatus===k ? null : k;
+  document.querySelectorAll("#outcomes button").forEach(b=>{
+    b.className = b.dataset.s===pendingStatus ? "on" : "";
+  });
+};
+
+async function submitCall(){
+  if(!currentProspect) return;
+  $("#saveCall").disabled = true;
+  const r = await api(`/clients/api/prospects/${currentProspect.id}/log`,
+    {method:"POST", body: JSON.stringify({ notes: $("#callNotes").value, status: pendingStatus || "called" })});
+  const d = await r.json();
+  $("#saveCall").disabled = false;
+  if(!r.ok){ $("#callErr").textContent = d.error||"Couldn't save."; return; }
+  showCallList();
+}
+
+function onboardFromProspect(){
+  if(!currentProspect) return;
+  resetWiz();
+  wiz.prospect = currentProspect;
+  step1();
+}
+
 // ---------- client list ----------
 async function showList(){
+  setTab("clients");
   resetWiz();
   const r = await api("/clients/api/clients");
   if(r.status===401){ sessionStorage.removeItem("adminpw"); location.reload(); return; }
@@ -336,6 +565,7 @@ async function showList(){
         </div>
       </div>`).join("");
   }
+  $("#cClients").textContent = clients.length;
   $("#view").innerHTML = `<div class="toolbar"><h2>Your clients</h2>
     <span class="hint">${clients.length} total</span></div>${rows}`;
 

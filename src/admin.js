@@ -11,6 +11,11 @@ import { listClients, getClient, saveClient, removeClient } from "./clients.js";
 import { deleteLeadsByClient } from "./db.js";
 import { checkAdmin, passwordMatches, isLockedOut, noteFailure, noteSuccess } from "./auth.js";
 import { fetchSiteText, extractBusinessInfo } from "./scrape.js";
+import {
+  listProspects, getProspect, addProspects, logCall,
+  updateProspect, removeProspect, stats as prospectStats,
+} from "./prospects.js";
+import { searchBusinesses, placesConfigured } from "./places.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -108,10 +113,85 @@ export function adminRouter() {
         website: (b.website || "").trim(),
         websiteInfo: typeof b.websiteInfo === "string" ? b.websiteInfo : "",
       });
+      // If this came from the call list, mark that prospect as won.
+      if (b.prospectId) {
+        try {
+          updateProspect(b.prospectId, { status: "won", onboardedClientId: record.id });
+        } catch { /* prospect may have been deleted — not fatal */ }
+      }
       res.json({ ok: true, client: record });
     } catch (e) {
       res.status(400).json({ error: e.message });
     }
+  });
+
+  // ---------------- call list (prospects) ----------------
+
+  router.get("/clients/api/prospects", auth, (_req, res) => {
+    res.json({
+      prospects: listProspects(),
+      stats: prospectStats(),
+      canSearchWeb: placesConfigured(),
+    });
+  });
+
+  router.get("/clients/api/prospects/:id", auth, (req, res) => {
+    const p = getProspect(req.params.id);
+    if (!p) return res.status(404).json({ error: "not found" });
+    res.json(p);
+  });
+
+  // Pull fresh businesses off the web and merge them in (skips duplicates).
+  router.post("/clients/api/prospects/search", auth, async (req, res) => {
+    const b = req.body || {};
+    const trade = String(b.trade || "").trim();
+    const area = String(b.area || "").trim();
+    if (!trade || !area) return res.status(400).json({ error: "Need a trade and an area." });
+    if (!placesConfigured()) {
+      return res.status(400).json({
+        error: "Web search isn't set up — add GOOGLE_PLACES_API_KEY to your environment.",
+      });
+    }
+    try {
+      const found = await searchBusinesses(`${trade} in ${area}`, { trade, max: 20 });
+      const added = addProspects(found);
+      res.json({ ok: true, found: found.length, added: added.length });
+    } catch (e) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  // Add one by hand.
+  router.post("/clients/api/prospects", auth, (req, res) => {
+    const b = req.body || {};
+    if (!String(b.businessName || "").trim()) {
+      return res.status(400).json({ error: "Business name is required." });
+    }
+    const added = addProspects([b]);
+    if (!added.length) return res.status(409).json({ error: "Already on your call list." });
+    res.json({ ok: true, prospect: added[0] });
+  });
+
+  // Log how a call went.
+  router.post("/clients/api/prospects/:id/log", auth, (req, res) => {
+    try {
+      const b = req.body || {};
+      res.json({ ok: true, prospect: logCall(req.params.id, { notes: b.notes, status: b.status }) });
+    } catch (e) {
+      res.status(400).json({ error: e.message });
+    }
+  });
+
+  router.patch("/clients/api/prospects/:id", auth, (req, res) => {
+    try {
+      res.json({ ok: true, prospect: updateProspect(req.params.id, req.body || {}) });
+    } catch (e) {
+      res.status(400).json({ error: e.message });
+    }
+  });
+
+  router.delete("/clients/api/prospects/:id", auth, (req, res) => {
+    res.json({ ok: removeProspect(req.params.id) });
   });
 
   router.delete("/clients/api/clients/:id", auth, (req, res) => {
