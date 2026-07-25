@@ -24,6 +24,31 @@ const twilioRest =
     ? twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN)
     : null;
 
+// ---- turn detection (how fast the bot decides you're done talking) ----
+// server_vad replies a fixed moment after you go quiet — snappy and predictable.
+// semantic_vad waits until your sentence sounds finished — more polite, slower.
+// Tune without redeploying:  VAD_MODE=server_vad|semantic_vad
+//                            VAD_SILENCE_MS=450   (server_vad: lower = faster)
+//                            VAD_EAGERNESS=high   (semantic_vad only)
+function buildTurnDetection() {
+  const mode = process.env.VAD_MODE || "server_vad";
+  if (mode === "semantic_vad") {
+    return {
+      type: "semantic_vad",
+      eagerness: process.env.VAD_EAGERNESS || "high",
+      interrupt_response: true,
+    };
+  }
+  const ms = Number(process.env.VAD_SILENCE_MS || 500);
+  return {
+    type: "server_vad",
+    silence_duration_ms: Number.isFinite(ms) ? ms : 500,
+    prefix_padding_ms: 200,
+    threshold: 0.5,
+    interrupt_response: true,
+  };
+}
+
 /**
  * Build the session.update payload for the chosen API mode.
  */
@@ -41,7 +66,7 @@ function buildSessionUpdate(biz, { mode, voice }) {
         output_audio_format: "g711_ulaw",
         // Longer pause tolerance so mid-sentence gaps (reading off a phone
         // number, thinking of an address) don't get mistaken for "done talking".
-        turn_detection: { type: "server_vad", silence_duration_ms: 500, interrupt_response: true },
+        turn_detection: buildTurnDetection(),
         // Hard cap so the model physically cannot chain several questions (or
         // a whole mini-script) into one uninterrupted turn — it's forced to
         // stop short and hand the turn back to the caller. Generous enough to
@@ -75,7 +100,7 @@ function buildSessionUpdate(biz, { mode, voice }) {
           // done: low=8s, medium=4s, high=2s. "low" left painful dead air
           // after short answers like a bare name, so "medium" — barge-in
           // handling (cancel+truncate) covers us if it ever jumps in early.
-          turn_detection: { type: "semantic_vad", eagerness: "high", interrupt_response: true },
+          turn_detection: buildTurnDetection(),
         },
         output: {
           format: { type: "audio/pcmu" },
@@ -105,6 +130,8 @@ export function startCallBridge(twilioWs, biz, env, initialMsg) {
   let leadBooked = false;       // has a job/message been saved this call yet?
   let pendingHangup = false;    // end_call approved — a goodbye is owed
   let goodbyeStarted = false;   // has the goodbye response actually been fired?
+  let responseAudioMs = 0;      // ms of audio generated for the current response
+  let responseFirstAudioAt = 0; // when the first audio chunk of it was sent
   let haveName = false;         // captured caller's name?
   let haveNumber = false;       // captured callback number?
   let haveSituation = false;    // captured the problem/reason?
@@ -202,6 +229,8 @@ export function startCallBridge(twilioWs, biz, env, initialMsg) {
         activeResponseId = evt.response?.id || null;
         activeItemId = null;
         playedAudioMs = 0;
+        responseAudioMs = 0;
+        responseFirstAudioAt = 0;
         break;
       case "response.done":
       case "response.cancelled":
@@ -218,9 +247,18 @@ export function startCallBridge(twilioWs, biz, env, initialMsg) {
             startGoodbye();
             break;
           }
-          // the goodbye itself just finished generating — let it finish PLAYING
-          console.log("[call] goodbye delivered — hanging up");
-          setTimeout(() => hangUp(), GOODBYE_FLUSH_MS);
+          // The goodbye finished GENERATING — but Twilio plays it back in real
+          // time, so there is still unplayed audio buffered. Wait for exactly
+          // that much (plus a small cushion) instead of a fixed guess, or the
+          // closing line gets cut off mid-sentence.
+          const elapsed = responseFirstAudioAt ? Date.now() - responseFirstAudioAt : 0;
+          const remaining = Math.max(0, responseAudioMs - elapsed);
+          const waitMs = Math.min(15000, Math.max(1500, Math.round(remaining) + GOODBYE_FLUSH_MS));
+          console.log(
+            `[call] goodbye is ${Math.round(responseAudioMs)}ms of audio, ` +
+              `${Math.round(remaining)}ms still playing — hanging up in ${waitMs}ms`
+          );
+          setTimeout(() => hangUp(), waitMs);
           break;
         }
         if (pendingResponse) {
@@ -250,7 +288,10 @@ export function startCallBridge(twilioWs, biz, env, initialMsg) {
           );
           // g711 u-law @ 8kHz = 8 bytes/ms, so this tracks how much of this
           // item's audio the caller has actually heard so far.
-          playedAudioMs += Buffer.from(evt.delta, "base64").length / 8;
+          const chunkMs = Buffer.from(evt.delta, "base64").length / 8;
+          playedAudioMs += chunkMs;
+          responseAudioMs += chunkMs;
+          if (!responseFirstAudioAt) responseFirstAudioAt = Date.now();
         }
         break;
       }
@@ -403,10 +444,15 @@ export function startCallBridge(twilioWs, biz, env, initialMsg) {
             output: JSON.stringify({
               ok: true,
               instruction:
-                "Before the line closes, say ONE short, warm goodbye out loud — " +
-                "reassure them by name that " + (biz.ownerName || "the owner") +
-                " will call them right back, and wish them well. Keep it to one or " +
-                "two sentences. Do not ask another question.",
+                "Now say your closing out loud, warmly and unhurried — this is the " +
+                "last thing they hear. Cover three things in two or three short " +
+                "sentences: (1) briefly acknowledge what they are dealing with, " +
+                "(2) tell them by name that " + (biz.ownerName || "the owner") +
+                " has everything and will call them right back, and (3) a genuine " +
+                "sign-off — for example: \"Alright Dana, I\'ve got all of that down. " +
+                "Eric will give you a call right back to get someone out to you. " +
+                "Hang in there, and thanks for calling us.\" Do NOT ask another " +
+                "question and do NOT call any more tools.",
             }),
           },
         })
