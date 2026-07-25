@@ -11,9 +11,12 @@ import { notifyOwner } from "./sms.js";
 
 const OPENAI_REALTIME_URL = "wss://api.openai.com/v1/realtime";
 
-// How long to wait after the model asks to end the call before actually
-// hanging up — gives the goodbye audio time to finish playing to the caller.
-const HANGUP_GRACE_MS = 3000;
+// After the goodbye finishes generating, wait this long so the audio Twilio
+// has buffered actually finishes playing before we cut the line.
+const GOODBYE_FLUSH_MS = 2500;
+// Absolute backstop: hang up this long after end_call even if the goodbye
+// never completes (model error, caller silence, etc).
+const HANGUP_MAX_MS = 15000;
 
 // Twilio REST client (for definitively hanging up a call by its SID).
 const twilioRest =
@@ -38,7 +41,7 @@ function buildSessionUpdate(biz, { mode, voice }) {
         output_audio_format: "g711_ulaw",
         // Longer pause tolerance so mid-sentence gaps (reading off a phone
         // number, thinking of an address) don't get mistaken for "done talking".
-        turn_detection: { type: "server_vad", silence_duration_ms: 700, interrupt_response: true },
+        turn_detection: { type: "server_vad", silence_duration_ms: 500, interrupt_response: true },
         // Hard cap so the model physically cannot chain several questions (or
         // a whole mini-script) into one uninterrupted turn — it's forced to
         // stop short and hand the turn back to the caller. Generous enough to
@@ -72,7 +75,7 @@ function buildSessionUpdate(biz, { mode, voice }) {
           // done: low=8s, medium=4s, high=2s. "low" left painful dead air
           // after short answers like a bare name, so "medium" — barge-in
           // handling (cancel+truncate) covers us if it ever jumps in early.
-          turn_detection: { type: "semantic_vad", eagerness: "medium", interrupt_response: true },
+          turn_detection: { type: "semantic_vad", eagerness: "high", interrupt_response: true },
         },
         output: {
           format: { type: "audio/pcmu" },
@@ -100,6 +103,7 @@ export function startCallBridge(twilioWs, biz, env, initialMsg) {
   let activeItemId = null;      // id of the assistant message item streaming audio
   let playedAudioMs = 0;        // ms of that item's audio actually sent to the caller
   let leadBooked = false;       // has a job/message been saved this call yet?
+  let pendingHangup = false;    // goodbye is being spoken; hang up once it lands
   let haveName = false;         // captured caller's name?
   let haveNumber = false;       // captured callback number?
   let haveSituation = false;    // captured the problem/reason?
@@ -193,6 +197,12 @@ export function startCallBridge(twilioWs, biz, env, initialMsg) {
         activeResponseId = null;
         activeItemId = null;
         playedAudioMs = 0;
+        if (pendingHangup) {
+          // the goodbye just finished generating — let it finish PLAYING, then end
+          console.log("[call] goodbye delivered — hanging up");
+          setTimeout(() => hangUp(), GOODBYE_FLUSH_MS);
+          break;
+        }
         if (pendingResponse) {
           pendingResponse = false;
           requestResponse(); // fire the response that was waiting
@@ -358,18 +368,30 @@ export function startCallBridge(twilioWs, biz, env, initialMsg) {
         requestResponse();
         return;
       }
+      // Allowed to end — but DON'T drop the line silently. Ask the model to
+      // deliver one short, warm closing line first, then hang up once that
+      // audio has actually played.
       openAi.send(
         JSON.stringify({
           type: "conversation.item.create",
           item: {
             type: "function_call_output",
             call_id: evt.call_id,
-            output: JSON.stringify({ ok: true }),
+            output: JSON.stringify({
+              ok: true,
+              instruction:
+                "Before the line closes, say ONE short, warm goodbye out loud — " +
+                "reassure them by name that " + (biz.ownerName || "the owner") +
+                " will call them right back, and wish them well. Keep it to one or " +
+                "two sentences. Do not ask another question.",
+            }),
           },
         })
       );
-      console.log(`[call] end_call allowed (${args.reason || "no reason"}) — hanging up shortly`);
-      setTimeout(() => hangUp(), HANGUP_GRACE_MS);
+      pendingHangup = true;
+      requestResponse();            // <-- this is what makes it actually speak
+      console.log(`[call] end_call allowed (${args.reason || "no reason"}) — saying goodbye`);
+      setTimeout(() => hangUp(), HANGUP_MAX_MS);   // backstop
       return;
     }
 
