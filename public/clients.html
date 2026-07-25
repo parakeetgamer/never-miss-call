@@ -255,6 +255,14 @@ function step4(){
       </table>
       <div class="hint">Undo later: <code>##002#</code> (AT&amp;T/T-Mobile) · <code>*73</code> (Verizon)</div>
     </div>
+    <div class="action" style="border-left-color:var(--danger)">
+      <div class="what">⚠️ Still going to voicemail? (iPhone + Verizon)</div>
+      <div class="hint"><b>iPhone Live Voicemail blocks call forwarding.</b> Have them go to
+      <b>Settings → Phone → Live Voicemail → OFF</b>, then dial <code>*73</code> to reset,
+      then re-dial the forwarding code. This fixes it almost every time.<br><br>
+      Also: Verizon does NOT support iPhone's Settings → Phone → Call Forwarding toggle —
+      dial codes only. Wait 2–3 sec after dialing for the confirmation tone.</div>
+    </div>
     <label class="check"><input type="checkbox" onchange="$('#nextBtn').disabled=!this.checked"/> They dialed it (or set it in their app)</label>
     ${nav(null,"Next ›","step5", true)}`;
 }
@@ -311,6 +319,8 @@ async function showList(){
   if(!clients.length){
     rows = `<div class="empty"><b>No clients yet.</b>Tap "+ Onboard a client" — it walks you through every step.</div>`;
   } else {
+    // NOTE: never interpolate names into inline onclick — an apostrophe in a
+    // business name ("Cornel's") breaks the handler. Use data attributes.
     rows = clients.map(c=>`
       <div class="client">
         <div>
@@ -318,13 +328,21 @@ async function showList(){
           <div class="meta">${esc(c.ownerName||"")} · ${esc(c.twilioNumber||"")}</div>
         </div>
         <div class="actions">
-          <button class="btn-ghost btn-sm" onclick="copy('https://${HOST}/d/${esc(c.dashToken||"")}',this)">Board link</button>
-          <button class="btn-danger" onclick="delClient('${c.id}','${esc(c.businessName)}')">Delete</button>
+          <button class="btn-ghost btn-sm js-board" data-url="https://${HOST}/d/${esc(c.dashToken||"")}">Board link</button>
+          <button class="btn-danger js-del" data-id="${esc(c.id)}" data-name="${esc(c.businessName)}">Delete</button>
         </div>
       </div>`).join("");
   }
   $("#view").innerHTML = `<div class="toolbar"><h2>Your clients</h2>
     <span class="hint">${clients.length} total</span></div>${rows}`;
+
+  // bind actions (safe for names containing quotes/apostrophes)
+  document.querySelectorAll(".js-board").forEach(b=>{
+    b.onclick = ()=> copy(b.dataset.url, b);
+  });
+  document.querySelectorAll(".js-del").forEach(b=>{
+    b.onclick = ()=> delClient(b.dataset.id, b.dataset.name);
+  });
 }
 window.delClient = async (id,name)=>{
   if(!confirm(`Delete ${name}? This stops their receptionist.`)) return;
