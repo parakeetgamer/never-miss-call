@@ -5,6 +5,255 @@
 
 window.CALL_SCRIPT = {
 
+
+  // ---------- more openers you'll actually hear ----------
+  o_driving: {
+    stage: "Opener · he's driving",
+    say: "No problem at all — I'd rather you keep both hands on the wheel. When are you usually parked, first thing in the morning or end of day? I'll catch you then.",
+    why: "Never pitch a guy driving. You'll lose him and look inconsiderate. Get the time and go.",
+    options: [
+      { label: "\"Morning's better\" / gives a time", goto: "schedule" },
+      { label: "\"Just tell me now, it's fine\"", goto: "hook" },
+      { label: "\"Don't call back\"", goto: "exit" },
+    ],
+  },
+  o_dnc: {
+    stage: "Opener · take me off your list",
+    kind: "exit",
+    say: "You got it — I'll take you off right now and you won't hear from me again. Sorry to bother you, have a good one.",
+    why: "STOP. Honor it immediately, no rebuttal, no 'just one question.' This is a legal do-not-call request, and arguing is both illegal and pointless.",
+    next: [
+      "Mark them DEAD in this app right now",
+      "Never call this number again — not in 3 months, not ever",
+      "Don't text them either",
+    ],
+    options: [{ label: "↺ Next call", goto: "dial" }],
+  },
+  o_hostile: {
+    stage: "Opener · he's annoyed",
+    say: "Totally fair — you get a hundred of these a week and most of them are garbage. I'll get out of your hair. Sorry to catch you at a bad moment.",
+    why: "Do NOT push back on an angry guy. Exit warm and he might take your call in three months. Argue and he never will — and he talks to other contractors.",
+    options: [
+      { label: "\"...alright, what is it?\"", goto: "hook" },
+      { label: "He's done", goto: "exit" },
+    ],
+  },
+
+  // ---------- hook objections specific to busy trades ----------
+  h_booked: {
+    stage: "Hook · \"I've got plenty of work\"",
+    say: "That's a good problem — and honestly that's when this matters most. When you're booked solid, those calls still ring, you just can't get to them. This isn't about chasing more work, it's about not sending your overflow to the guy down the road, and having a list of jobs waiting when things slow down. Worth a listen?",
+    why: "Very common right now. Don't argue that he needs more work — reframe it as not GIVING work away, plus a pipeline for the slow months.",
+    options: [
+      { label: "\"Huh, hadn't thought of it that way\"", goto: "qualify" },
+      { label: "\"I really don't want more work\"", goto: "h_nogrow" },
+      { label: "\"Still not interested\"", goto: "exit" },
+    ],
+  },
+  h_nogrow: {
+    stage: "Hook · doesn't want to grow",
+    say: "Fair enough — plenty of guys have the size they want. Then think of it as picking your jobs instead of taking whatever catches you on the phone. It grabs the details so you call back the ones worth your time. But if you're genuinely full, I'll leave you be — you good?",
+    why: "Respect it. Reframe as job selection, not growth. Then give him a real out — pushing a content owner reads as desperate.",
+    options: [
+      { label: "\"Actually, that'd be useful\"", goto: "qualify" },
+      { label: "\"Yeah, I'm good\"", goto: "exit" },
+    ],
+  },
+  h_referral: {
+    stage: "Hook · \"I'm all word-of-mouth\"",
+    say: "That's the best kind of business — means you do good work. Here's the thing though: referrals still call. Your buddy gives someone your number, they ring, you're under a sink, it goes to voicemail — and that referral's gone. This mostly protects the work you've already earned. Make sense?",
+    why: "Don't try to sell him on marketing. Point out that referrals arrive BY PHONE, so missed calls hurt him worst of all.",
+    options: [
+      { label: "\"Yeah, that happens\"", goto: "qualify" },
+      { label: "\"They'd call back though\"", goto: "C0" },
+    ],
+  },
+  h_small: {
+    stage: "Hook · \"I'm too small for that\"",
+    say: "Honestly, small is exactly who this is for. The big shops have a girl answering phones all day — you don't, and that's the whole gap. You're the one who can't pick up because you're the guy doing the work. Two minutes to hear it?",
+    why: "Turn 'too small' into the reason he needs it. Big shops have staff; he IS the staff.",
+    options: [
+      { label: "\"Alright, let's hear it\"", goto: "demo_ask" },
+      { label: "\"Can't afford it though\"", goto: "A0" },
+    ],
+  },
+
+  // ---------- demo-ask variations ----------
+  d_notime: {
+    stage: "Ask · no time right now",
+    say: "Two minutes, and you don't have to do anything but dial a number and listen. If you've got five minutes at the end of the day, I'll set it up and text you the number so you can call it whenever. What's the best cell?",
+    why: "Shrink the ask and take the work off him. Still capture the cell either way.",
+    options: [
+      { label: "Gives the number", goto: "demo_setup" },
+      { label: "\"Call me tomorrow\"", goto: "schedule" },
+    ],
+  },
+
+  // ---------- after the demo: reactions & questions ----------
+  ad_robotic: {
+    stage: "After demo · \"it sounded robotic\"",
+    say: "Yeah? Tell me what part — was it the voice, or did it say something off? I'd genuinely rather know, because I can tune it. That was the generic version too; a real setup knows your services and your hours.",
+    why: "Do NOT get defensive. Ask what specifically. Often it's one fixable thing, and asking makes you the pro instead of the salesman.",
+    options: [
+      { label: "Names something fixable", goto: "ad_fix" },
+      { label: "\"Just don't like AI voices\"", goto: "B3" },
+      { label: "\"It was fine actually, just weird hearing it\"", goto: "afterdemo" },
+    ],
+  },
+  ad_fix: {
+    stage: "After demo · fixable complaint",
+    say: "That I can fix — takes me about ten minutes. Let me tune it and call you back this afternoon so you can hear it again. If it still bugs you, we're done and no hard feelings.",
+    why: "Fixing it live is your biggest advantage over a big company. Use it and set a callback.",
+    options: [
+      { label: "\"Sure, call me back\"", goto: "schedule" },
+      { label: "\"Nah, don't bother\"", goto: "exit" },
+    ],
+  },
+  ad_how: {
+    stage: "After demo · \"how does it know my business?\" (BUYING SIGNAL)",
+    say: "I set it up from your website and whatever you tell me — your services, your hours, what you don't do, your service area. It only says what I put in it, so it can't go inventing things. Takes me about a day to get yours dialed in. Want me to build yours out?",
+    why: "He's picturing owning it. That's a buying signal — answer fast and close.",
+    options: [
+      { label: "\"Yeah, let's do it\"", goto: "close" },
+      { label: "\"What if it says something wrong?\"", goto: "ad_wrong" },
+    ],
+  },
+  ad_wrong: {
+    stage: "After demo · \"what if it quotes a price?\"",
+    say: "It won't — it's built specifically not to. It never gives prices or promises a time; it says you'll call right back to confirm. That protects you, because a wrong quote on the phone is a real headache. Anything it's unsure about, it takes a message and texts you.",
+    why: "This is the sharpest question a smart owner asks. Having a real answer separates you from the fly-by-night AI guys.",
+    options: [
+      { label: "\"Good, that's what I'd want\"", goto: "close" },
+      { label: "\"Still nervous about it\"", goto: "B3" },
+    ],
+  },
+  ad_refs: {
+    stage: "After demo · \"who else uses this?\"",
+    say: "Being straight with you — I'm early, and you'd be one of the first shops around here on it. That's actually why I'm keeping it month-to-month with no contract: you're not taking my word for anything, you just watch what it catches for a month. If it doesn't earn its keep, you drop it.",
+    why: "Don't fake a client list. Honesty plus risk reversal beats invented social proof, and he'll find out anyway.",
+    options: [
+      { label: "\"Fair enough\"", goto: "close" },
+      { label: "\"I'd rather wait till you've got some\"", goto: "ad_earlyprice" },
+      { label: "\"You're just one guy then\"", goto: "E2" },
+    ],
+  },
+  ad_earlyprice: {
+    stage: "After demo · wants to wait for proof",
+    say: "I get it. Tell you what — since you'd be early, I'll hold your rate where it is for as long as you stay with me. You get the same setup, I get a shop I can point to. Want to be one of the first?",
+    why: "Turn 'you're unproven' into 'you get founder pricing.' Honest trade — he takes a risk, he gets a locked rate.",
+    options: [
+      { label: "\"Alright, I'm in\"", goto: "close" },
+      { label: "\"Still want to wait\"", goto: "schedule" },
+    ],
+  },
+  ad_competitor: {
+    stage: "After demo · \"you working with my competitors?\"",
+    say: "Straight answer — not right now. And if that matters to you, say so, because I'd rather have one good shop per area than five who all resent me. You want first crack at your patch?",
+    why: "Territory exclusivity is a genuine closing lever for trades. Only offer it if you'll honor it.",
+    options: [
+      { label: "\"Yeah, I want it\"", goto: "close" },
+      { label: "\"Doesn't bother me\"", goto: "afterdemo" },
+    ],
+  },
+  ad_afterhours: {
+    stage: "After demo · \"only want it after hours\"",
+    say: "That's fine — it's your line, you decide when it picks up. A lot of guys start with nights and weekends only and then add daytime once they see what it catches. Want me to set it up that way?",
+    why: "Say yes. A smaller yes now beats a no. He'll expand once he sees the leads.",
+    options: [
+      { label: "\"Yeah, do that\"", goto: "close" },
+      { label: "\"Is it cheaper that way?\"", goto: "A0" },
+    ],
+  },
+  ad_setup: {
+    stage: "After demo · \"how long to set up?\" (BUYING SIGNAL)",
+    say: "About a day on my end, and you do basically nothing — I build it, you dial one code on your phone to forward unanswered calls, and I test it with you on the line. I can have you live tomorrow morning. Want me to start?",
+    why: "Logistics questions mean he's picturing it working. Close now.",
+    options: [
+      { label: "\"Let's do it\"", goto: "close" },
+      { label: "\"What if I want out later?\"", goto: "E0" },
+    ],
+  },
+
+  // ---------- price sub-branches ----------
+  A_discount: {
+    stage: "Price · asking for a discount",
+    say: "I keep it the same for everybody — that's how I stay around to actually support you. The guys who discount hard are the ones who disappear. What I can do is month-to-month with no setup fee, so you're never out more than one month. That work?",
+    why: "Don't discount on the first ask. Trade risk reduction instead of price. Discounting also teaches him to push.",
+    options: [
+      { label: "\"Alright, fair\"", goto: "close" },
+      { label: "\"Then it's too much\"", goto: "A2b" },
+    ],
+  },
+  A_setupfee: {
+    stage: "Price · \"is there a setup fee?\"",
+    say: "Nope — I do the setup free. I'd rather earn it on the monthly by actually catching you jobs. So your only cost is the first month, and you can cancel any time after.",
+    why: "Free setup is your best risk-reducer. Lead with it whenever cost comes up.",
+    options: [
+      { label: "\"Okay, let's start\"", goto: "close" },
+      { label: "\"Still want to think\"", goto: "D0" },
+    ],
+  },
+  A_trial: {
+    stage: "Price · \"can I try it free?\"",
+    say: "That's basically what the demo was — you heard it work for free, no strings. And month-to-month with free setup means your first month IS the trial: if it doesn't catch you anything, you're out and you've lost one month. Want to run it that way?",
+    why: "Reframe: the demo was the free trial, and month-to-month is the risk-free test. Don't give away a free month — free customers don't value it.",
+    options: [
+      { label: "\"Alright, one month\"", goto: "close" },
+      { label: "\"I really want a free trial\"", goto: "A_trial2" },
+    ],
+  },
+  A_trial2: {
+    stage: "Price · pushing hard on free",
+    say: "Here's my honest problem with free: it takes me a real day to build yours, and free customers never actually check whether it's working. If it's the money that's the issue, tell me straight and we'll figure something out. Is it the money, or do you just want proof?",
+    why: "Isolate again — 'free trial' usually means either 'I'm broke' or 'I don't believe you.' Those need different answers.",
+    options: [
+      { label: "\"I just want proof\"", goto: "ad_earlyprice" },
+      { label: "\"It's the money\"", goto: "A2b" },
+    ],
+  },
+
+  // ---------- status quo sub-branches ----------
+  C_service: {
+    stage: "Status quo · already has an answering service",
+    say: "Okay — what are you paying them? … And do they actually book the job, or just take a message? Most services just relay. Mine gets the name, number, address and the problem, texts it to you in seconds, and it doesn't call in sick. Worth comparing side by side for a month?",
+    why: "Ask what they pay and what they get. Almost always you're cheaper AND faster, and he's never actually compared.",
+    options: [
+      { label: "Tells you a price / complains about them", goto: "close" },
+      { label: "\"They're fine, I'm happy\"", goto: "C3" },
+    ],
+  },
+  C_app: {
+    stage: "Status quo · uses Google Voice / an app",
+    say: "Those are fine for a voicemail box — but they still just take a message, and 8 out of 10 people won't leave one. The difference here is somebody actually answers and talks to them. That's the part that saves the job. Worth hearing?",
+    why: "Don't trash his setup. Draw the line at answer vs. record — that's the real distinction.",
+    options: [
+      { label: "\"Fair point\"", goto: "demo_ask" },
+      { label: "\"It works fine for me\"", goto: "C1" },
+    ],
+  },
+
+  // ---------- delay sub-branch ----------
+  D_writing: {
+    stage: "Delay · \"send me something in writing\"",
+    say: "Sure — I'll text you a one-pager and the price. It's month-to-month, no contract, so honestly there's not much to read. While I've got you, what's the one thing you'd want that paper to answer?",
+    why: "Agree, send it, but get the real objection out of him before you hang up — otherwise the paper goes in the trash.",
+    options: [
+      { label: "Names a real concern", goto: "D0" },
+      { label: "\"Just send it, I'll look\"", goto: "schedule" },
+    ],
+  },
+
+  // ---------- risk sub-branch ----------
+  E_gone: {
+    stage: "Risk · \"what if you disappear?\"",
+    say: "Fair. If I ever vanished, your line just goes back to ringing the way it does today — you're not worse off than you are right now, and you're not locked into anything. That's the whole reason there's no contract. Want to try a month?",
+    why: "Show the downside is 'back to normal,' not catastrophe. That kills the fear.",
+    options: [
+      { label: "\"Okay, that's fair\"", goto: "close" },
+      { label: "\"Still rather go with a big company\"", goto: "E2b" },
+    ],
+  },
+
   // ================= FRONT HALF · dial -> demo =================
   dial: {
     stage: "Dialing",
@@ -67,11 +316,14 @@ window.CALL_SCRIPT = {
     say: "Hey, is this {OWNER}? … {OWNER}, this is Luke with Never Miss a Call — I'm local, over in Hillsboro. I know you weren't expecting my call — can I grab you for 30 seconds, and you can tell me to buzz off if it's useless?",
     why: "Name both of you, then ask permission. Gong: this style hits ~11% success. NEVER say \"did I catch you at a bad time?\" — that's the worst opener there is (0.9%).",
     options: [
-      { label: "\"Sure, go ahead\"", goto: "hook" },
-      { label: "\"Who is this? / What's this about?\"", goto: "o_who" },
-      { label: "\"Not interested\"", goto: "o_notint" },
       { label: "\"I'm on a job / I'm busy\"", goto: "o_busy" },
+      { label: "\"Not interested\"", goto: "o_notint" },
+      { label: "\"Who is this? / What's this about?\"", goto: "o_who" },
+      { label: "\"Sure, go ahead\"", goto: "hook" },
+      { label: "\"I'm driving\"", goto: "o_driving" },
       { label: "\"How'd you get my number?\"", goto: "o_number" },
+      { label: "😠 He sounds annoyed", goto: "o_hostile" },
+      { label: "🛑 \"Take me off your list\"", goto: "o_dnc" },
     ],
   },
   o_who: {
@@ -119,9 +371,12 @@ window.CALL_SCRIPT = {
     why: "Problem-first language books ~3x better than feature talk. End on a yes-question and STOP.",
     options: [
       { label: "\"Yeah, that happens\"", goto: "qualify" },
-      { label: "\"I don't really miss calls\"", goto: "C0" },
-      { label: "\"Is this a sales call?\"", goto: "h_sales" },
       { label: "\"I've got someone answering\"", goto: "C2" },
+      { label: "\"I'm booked out / got plenty of work\"", goto: "h_booked" },
+      { label: "\"I don't really miss calls\"", goto: "C0" },
+      { label: "\"I'm all word-of-mouth\"", goto: "h_referral" },
+      { label: "\"Is this a sales call?\"", goto: "h_sales" },
+      { label: "\"I'm too small for that\"", goto: "h_small" },
     ],
   },
   h_sales: {
@@ -150,9 +405,10 @@ window.CALL_SCRIPT = {
     say: "So here's what I do, and honestly it's easier to hear than explain. I set up an assistant that answers in your business's name when you can't, gets the caller's name, number and what they need, and texts you the lead before you're off the ladder. I can set it up as {BIZ} right now and you call it and hear it yourself. Takes two minutes. Want to hear it?",
     why: "Never sell the product on a cold call — sell the demo. The demo is what closes.",
     options: [
-      { label: "\"Yeah, let's hear it\"", goto: "demo_setup" },
-      { label: "\"Just send me some info\"", goto: "d_info" },
       { label: "\"How much is it?\"", goto: "d_price" },
+      { label: "\"Just send me some info\"", goto: "d_info" },
+      { label: "\"Yeah, let's hear it\"", goto: "demo_setup" },
+      { label: "\"I don't have time right now\"", goto: "d_notime" },
       { label: "\"Is this one of those AI things?\"", goto: "B0" },
       { label: "\"No thanks\"", goto: "o_notint" },
     ],
@@ -206,12 +462,18 @@ window.CALL_SCRIPT = {
     say: "So that's it working as {BIZ}. Want me to set it up on your real line this week?",
     why: "Ask, then STOP TALKING. Top reps pause 5x longer than average after an objection. Let the silence do the work.",
     options: [
-      { label: "👍 Yes / sounds good", goto: "close" },
-      { label: "💵 Too expensive", goto: "A0" },
-      { label: "🤖 Customers will hate a robot", goto: "B0" },
-      { label: "📞 Voicemail's fine / not missing calls", goto: "C0" },
-      { label: "🕐 Need to think about it", goto: "D0" },
-      { label: "⚠️ What if I cancel / you're one guy", goto: "E0" },
+      { label: "💵 \"How much is it?\" / too expensive", goto: "A0" },
+      { label: "🕐 \"Let me think about it\"", goto: "D0" },
+      { label: "🤖 \"Customers will hate a robot\"", goto: "B0" },
+      { label: "👍 \"Yeah, sounds good\"", goto: "close" },
+      { label: "🔧 \"How does it know my business?\"", goto: "ad_how" },
+      { label: "😐 \"It sounded kind of robotic\"", goto: "ad_robotic" },
+      { label: "⏱️ \"How long does setup take?\"", goto: "ad_setup" },
+      { label: "📞 \"Voicemail's fine / not missing calls\"", goto: "C0" },
+      { label: "⚠️ \"What if I cancel / you're one guy\"", goto: "E0" },
+      { label: "🌙 \"Could I use it just after hours?\"", goto: "ad_afterhours" },
+      { label: "👥 \"Who else uses this?\"", goto: "ad_refs" },
+      { label: "🏘️ \"You work with my competitors?\"", goto: "ad_competitor" },
     ],
   },
 
@@ -223,6 +485,9 @@ window.CALL_SCRIPT = {
     options: [
       { label: "\"Yeah, if the money made sense\"", goto: "A1" },
       { label: "\"No, it's not really the money\"", goto: "A2" },
+      { label: "\"Can you do any better on price?\"", goto: "A_discount" },
+      { label: "\"Is there a setup fee?\"", goto: "A_setupfee" },
+      { label: "\"Can I try it free first?\"", goto: "A_trial" },
     ],
   },
   A1: {
@@ -312,6 +577,8 @@ window.CALL_SCRIPT = {
     options: [
       { label: "\"I'm not missing that many\"", goto: "C1" },
       { label: "\"My wife / office gal answers\"", goto: "C2" },
+      { label: "\"I already use an answering service\"", goto: "C_service" },
+      { label: "\"I use Google Voice / an app\"", goto: "C_app" },
       { label: "\"I've gotten by 20 years\"", goto: "C3" },
     ],
   },
@@ -358,11 +625,12 @@ window.CALL_SCRIPT = {
     say: "Course — it's your call. Most folks who say that are either not sold yet, or there's one thing they're unsure about. Which one is it for me? Be straight — what's the piece you're chewing on?",
     why: "\"Think about it\" is almost never real. Surface the actual objection or you'll never hear from them again.",
     options: [
-      { label: "\"It's the price\"", goto: "A0" },
-      { label: "\"It's the AI thing\"", goto: "B0" },
       { label: "\"Just want to sleep on it\"", goto: "D2" },
-      { label: "\"Call me at busy season\"", goto: "D3" },
+      { label: "\"It's the price\"", goto: "A0" },
       { label: "\"Need to ask my partner\"", goto: "D4" },
+      { label: "\"Call me at busy season\"", goto: "D3" },
+      { label: "\"It's the AI thing\"", goto: "B0" },
+      { label: "\"Send me something in writing\"", goto: "D_writing" },
     ],
   },
   D2: {
@@ -409,8 +677,9 @@ window.CALL_SCRIPT = {
     why: "This is usually a BUYING SIGNAL — they're picturing owning it. Answer fast and close.",
     options: [
       { label: "\"Alright, let's start\"", goto: "close" },
-      { label: "\"What if it screws up a call?\"", goto: "E1" },
       { label: "\"You're just one guy though\"", goto: "E2" },
+      { label: "\"What if it screws up a call?\"", goto: "E1" },
+      { label: "\"What if you disappear on me?\"", goto: "E_gone" },
       { label: "\"Sounds complicated to set up\"", goto: "E3" },
     ],
   },

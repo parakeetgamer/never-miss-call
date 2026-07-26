@@ -637,7 +637,7 @@ function renderScript(id, pushed){
       ${n.why?`<div class="why"><b>Why</b><span>${esc(fill(n.why))}</span></div>`:""}
     </div>
     ${next}
-    ${opts?`<div class="theysay">${n.next?"Then":"What do they say?"}</div>${opts}`:""}
+    ${opts?`<div class="theysay">${n.next?"Then":"What do they say? &nbsp;<em style=\"font-style:normal;opacity:.55;letter-spacing:0;text-transform:none\">most likely first</em>"}</div>${opts}`:""}
     ${signals}`;
   window.scrollTo(0,0);
 }
