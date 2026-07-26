@@ -21,11 +21,11 @@ window.CALL_SCRIPT = {
   voicemail: {
     stage: "Voicemail — keep it under 20 seconds",
     kind: "schedule",
-    say: "Hey {OWNER}, it's [YOU] — I'm local here in Vancouver. Quick one about the calls that slip to voicemail when you're on a job. I've got a fix a few plumbers around here are using. I'll shoot you a text so you've got my number. Again, [YOU], [your number]. Talk soon.",
+    say: "Hey {OWNER}, it's Luke — I'm local, over in Hillsboro. Quick one about the calls that slip to voicemail when you're on a job. I've got a fix a few plumbers around here are using. I'll shoot you a text so you've got my number. Again, Luke, 503-894-5568. Talk soon.",
     why: "Voicemail alone rarely gets a callback — but voicemail PLUS a text roughly doubles reply rates. Say your number slowly. Max 2 voicemails ever.",
     next: [
       "Send the text right now, while you're still thinking about it",
-      "Text: \"Hey {OWNER} — [YOU] here, just left you a voicemail. I help local plumbers stop losing jobs to missed calls. Worth a 10-min listen? — [YOU]\"",
+      "Text: \"Hey {OWNER} — Luke here, just left you a voicemail. I help local plumbers stop losing jobs to missed calls. Worth a 10-min listen? — Luke\"",
       "Log it here as Called, note \"VM #1\"",
       "Try again in 2–3 days at a different time of day",
     ],
@@ -34,7 +34,7 @@ window.CALL_SCRIPT = {
 
   gatekeeper: {
     stage: "Someone else answered",
-    say: "Oh hey — is {OWNER} around? … No worries. This is [YOU], I'm local here in Vancouver. I work with plumbers on the calls that go to voicemail when they're out on a job. Is he the one I'd talk to about that?",
+    say: "Oh hey — is {OWNER} around? … No worries. This is Luke, I'm local — over in Hillsboro. I work with plumbers on the calls that go to voicemail when they're out on a job. Is he the one I'd talk to about that?",
     why: "Warm, casual, and name-first. Don't sound like a pitch or you get screened.",
     options: [
       { label: "\"Hang on, I'll get him\"", goto: "opener" },
@@ -64,7 +64,7 @@ window.CALL_SCRIPT = {
 
   opener: {
     stage: "The opener — first 5 seconds",
-    say: "Hey, is this {OWNER}? … {OWNER}, this is [YOU] with Never Miss a Call, I'm local here in Vancouver. I know you weren't expecting my call — can I grab you for 30 seconds, and you can tell me to buzz off if it's useless?",
+    say: "Hey, is this {OWNER}? … {OWNER}, this is Luke with Never Miss a Call — I'm local, over in Hillsboro. I know you weren't expecting my call — can I grab you for 30 seconds, and you can tell me to buzz off if it's useless?",
     why: "Name both of you, then ask permission. Gong: this style hits ~11% success. NEVER say \"did I catch you at a bad time?\" — that's the worst opener there is (0.9%).",
     options: [
       { label: "\"Sure, go ahead\"", goto: "hook" },
@@ -76,7 +76,7 @@ window.CALL_SCRIPT = {
   },
   o_who: {
     stage: "Opener · who are you",
-    say: "Fair question — [YOU], I'm local, over in Vancouver. I work with plumbers on the calls that go to voicemail when you're out on a job. That's the whole reason I'm calling.",
+    say: "Fair question — I'm Luke, I'm local, over in Hillsboro. I work with plumbers on the calls that go to voicemail when you're out on a job. That's the whole reason I'm calling.",
     why: "State your reason for calling — Gong found that alone lifts success 2.1x.",
     options: [
       { label: "\"Okay, go on\"", goto: "hook" },
@@ -178,7 +178,7 @@ window.CALL_SCRIPT = {
 
   demo_setup: {
     stage: "Setting up the demo — do this now",
-    say: "Perfect. Give me literally twenty seconds — what's your website? … Great. Okay, it's live. Call [YOUR DEMO NUMBER] right now and talk to it like you're a customer with a leak. I'll hang on.",
+    say: "Perfect. Give me literally twenty seconds — what's your website? … Great. Okay, it's live. Call 503-894-5568 right now and talk to it like you're a customer with a leak. I'll hang on.",
     why: "Do it while he's on the phone. \"I'll call you back later to try it\" is where deals go to die.",
     next: [
       "Open /admin → type in {BIZ} + owner name + their website",
