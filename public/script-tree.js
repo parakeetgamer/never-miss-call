@@ -434,11 +434,12 @@ window.CALL_SCRIPT = {
 
   demo_setup: {
     stage: "Setting up the demo — do this now",
+    action: "demo",
     say: "Perfect. Give me literally twenty seconds — what's your website? … Great. Okay, it's live. Call 503-894-5568 right now and talk to it like you're a customer with a leak. I'll hang on.",
     why: "Do it while he's on the phone. \"I'll call you back later to try it\" is where deals go to die.",
     next: [
-      "Open /admin → type in {BIZ} + owner name + their website",
-      "Hit Activate — takes about 10 seconds",
+      "Hit the green button below — it sets up as {BIZ} automatically",
+      "Read him the number, or tap Text it",
       "Give him the demo number, tell him to call it and act like a customer",
       "Stay on the line or call him right back in 3 minutes",
     ],

@@ -158,6 +158,15 @@
   .nextlist{margin:16px 0 0;padding:0;list-style:none}
   .nextlist li{background:var(--card);border:1px solid var(--line);border-radius:9px;
     padding:11px 13px;margin-bottom:7px;font-size:14.5px;line-height:1.4}
+  .demoCard{background:var(--panel);border:1px solid var(--line);border-left:4px solid var(--ok);
+    border-radius:13px;padding:17px;margin:16px 0}
+  .demoCard .t{font-family:var(--mono);font-size:10.5px;letter-spacing:.18em;text-transform:uppercase;
+    color:var(--ok);font-weight:700;margin-bottom:10px}
+  .demoNum{font-family:var(--mono);font-size:27px;font-weight:800;letter-spacing:.01em;margin:8px 0 2px}
+  .demoNum a{color:var(--amber);text-decoration:none}
+  .demoRow{display:flex;gap:8px;margin-top:11px}
+  .demoRow input{flex:1;padding:12px;font-size:16px}
+  .demoRow button{flex-shrink:0;padding:0 17px;font-size:14px;background:var(--ok);color:#12200a}
   .signals{margin-top:22px;border:1px dashed var(--line);border-radius:11px;padding:14px}
   .signals .t{font-family:var(--mono);font-size:10.5px;letter-spacing:.16em;text-transform:uppercase;
     color:var(--ok);font-weight:700;margin-bottom:8px}
@@ -523,7 +532,7 @@ async function showProspect(id){
         <div class="txt">${esc(c.notes)}</div>
       </div>`).join("");
 
-  $("#view").innerHTML = `
+  const _renderProspect = `
     <button class="btn-ghost btn-sm" onclick="showCallList()">‹ Back to call list</button>
     <h2 class="step" style="margin-top:14px">${esc(p.businessName)}</h2>
     <div class="pinfo">
@@ -544,10 +553,13 @@ async function showProspect(id){
     <button class="btn-primary" style="margin-top:10px" id="saveCall" onclick="submitCall()">Submit — mark as called</button>
     <div class="err" id="callErr"></div>
 
+    <div id="demoMount"></div>
     <button class="btn-primary" style="margin-top:16px" onclick="openScript()">📋 Open live call script</button>
     <button class="btn-ghost" style="width:100%;margin-top:10px" onclick="onboardFromProspect()">→ Onboard ${esc(p.businessName)} as a client</button>
 
     ${hist?`<div class="history"><div class="stepnum">Call history</div>${hist}</div>`:""}`;
+  $("#view").innerHTML = _renderProspect;
+  renderDemoCard(p, "demoMount");
 }
 
 window.pickStatus = (k)=>{
@@ -575,6 +587,83 @@ function onboardFromProspect(){
   step1();
 }
 
+
+
+// ================== ONE-TAP DEMO FOR THIS PROSPECT ==================
+let demoState = { forId: null, live: false, number: "", foundSite: false };
+
+async function activateDemoFor(p, mountId){
+  const btn = $("#demoBtn"); if(btn) btn.disabled = true;
+  setDemoStatus("Setting it up as " + p.businessName + "…", "var(--muted)");
+  try{
+    const r = await api("/api/demo/activate", { method:"POST", body: JSON.stringify({
+      businessName: p.businessName, ownerName: p.ownerName || "",
+      website: p.website || "", trade: p.trade || "", city: p.city || "",
+    })});
+    const d = await r.json();
+    if(btn) btn.disabled = false;
+    if(!r.ok || !d.ok){ setDemoStatus("Couldn't set it up: " + (d.error||"failed"), "var(--danger)"); return; }
+    demoState = { forId: p.id, live: true, number: d.demoNumber || "", foundSite: !!d.foundWebsiteInfo };
+    renderDemoCard(p, mountId);
+  }catch(e){
+    if(btn) btn.disabled = false;
+    setDemoStatus("Couldn't reach the server.", "var(--danger)");
+  }
+}
+
+async function textDemoTo(p){
+  const num = ($("#demoTo") && $("#demoTo").value || "").trim();
+  if(!num){ setDemoStatus("Enter their cell first.", "var(--danger)"); return; }
+  const b = $("#demoTextBtn"); if(b) b.disabled = true;
+  setDemoStatus("Sending…", "var(--muted)");
+  try{
+    const r = await api("/api/demo/text", { method:"POST", body: JSON.stringify({ toNumber: num })});
+    const d = await r.json();
+    if(b) b.disabled = false;
+    if(r.ok && d.ok) setDemoStatus("✓ Sent — tell them to check their texts.", "var(--ok)");
+    else setDemoStatus("Text didn't go through (A2P still pending?) — just read them the number out loud.", "var(--danger)");
+  }catch(e){
+    if(b) b.disabled = false;
+    setDemoStatus("Text failed — read them the number instead.", "var(--danger)");
+  }
+}
+
+function setDemoStatus(msg, color){
+  const el = $("#demoStatus"); if(!el) return;
+  el.style.color = color || "var(--muted)"; el.textContent = msg;
+}
+
+function demoCardHTML(p){
+  const isLive = demoState.live && demoState.forId === p.id;
+  if(!isLive){
+    return `<div class="demoCard">
+      <div class="t">Live demo</div>
+      <div style="font-size:14.5px;color:var(--muted);line-height:1.5;margin-bottom:11px">
+        Sets the assistant up to answer as <b style="color:var(--ink)">${esc(p.businessName)}</b>, then they call and hear it.</div>
+      <button class="btn-primary" id="demoBtn" onclick="activateDemoFor(currentProspect,'demoMount')">⚡ Set up demo as ${esc(p.businessName)}</button>
+      <div class="err" id="demoStatus" style="color:var(--muted)"></div>
+    </div>`;
+  }
+  const tel = "tel:" + String(demoState.number).replace(/[^+\d]/g,"");
+  return `<div class="demoCard">
+    <div class="t">✓ Demo is live as ${esc(p.businessName)}${demoState.foundSite?" · pulled their site":""}</div>
+    <div style="font-size:14.5px;color:var(--muted);margin-bottom:2px">Tell them to call this number:</div>
+    <div class="demoNum"><a href="${tel}">${esc(demoState.number || "(no number set)")}</a></div>
+    <div style="font-size:13px;color:var(--muted);line-height:1.5">
+      Say it out loud — "call ${esc(demoState.number)} right now and talk to it like a customer with a leak."</div>
+    <div class="demoRow">
+      <input id="demoTo" inputmode="tel" placeholder="their cell" value="${esc(p.phone||"")}"/>
+      <button id="demoTextBtn" onclick="textDemoTo(currentProspect)">Text it</button>
+    </div>
+    <div class="err" id="demoStatus" style="color:var(--muted)"></div>
+    <button class="btn-ghost btn-sm" style="margin-top:11px" onclick="activateDemoFor(currentProspect,'demoMount')">↻ Re-activate</button>
+  </div>`;
+}
+
+function renderDemoCard(p, mountId){
+  const el = document.getElementById(mountId || "demoMount");
+  if(el) el.innerHTML = demoCardHTML(p);
+}
 
 // ====================== LIVE CALL SCRIPT ======================
 let scriptStack = [];          // history for the Back button
@@ -636,9 +725,11 @@ function renderScript(id, pushed){
       <div class="sayline">${esc(fill(n.say))}</div>
       ${n.why?`<div class="why"><b>Why</b><span>${esc(fill(n.why))}</span></div>`:""}
     </div>
+    ${demoBox}
     ${next}
     ${opts?`<div class="theysay">${n.next?"Then":"What do they say? &nbsp;<em style=\"font-style:normal;opacity:.55;letter-spacing:0;text-transform:none\">most likely first</em>"}</div>${opts}`:""}
     ${signals}`;
+  if(n.action==="demo") renderDemoCard(scriptProspect, "demoMount");
   window.scrollTo(0,0);
 }
 
