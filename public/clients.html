@@ -744,6 +744,8 @@ function renderScript(id, pushed){
   const next = n.next
     ? `<div class="theysay">Do this now</div><ul class="nextlist">${n.next.map(x=>`<li>${esc(fill(x))}</li>`).join("")}</ul>`
     : "";
+  // Mount point for the live-demo controls (only on nodes flagged action:"demo")
+  const demoBox = n.action === "demo" ? `<div id="demoMount"></div>` : "";
   const signals = (id==="dial" || id==="afterdemo")
     ? `<div class="signals"><div class="t">Buying signals — stop selling, close</div><ul style="margin:0;padding-left:16px">
         ${window.BUYING_SIGNALS.map(x=>`<li>${esc(x)}</li>`).join("")}</ul></div>` : "";
