@@ -167,6 +167,9 @@
   .demoRow{display:flex;gap:8px;margin-top:11px}
   .demoRow input{flex:1;padding:12px;font-size:16px}
   .demoRow button{flex-shrink:0;padding:0 17px;font-size:14px;background:var(--ok);color:#12200a}
+  .smsbtn{flex-shrink:0;display:flex;align-items:center;padding:0 18px;border-radius:10px;
+    background:var(--ok);color:#12200a;font-weight:800;font-size:15px;text-decoration:none}
+  .smsbtn:active{transform:translateY(1px)}
   .signals{margin-top:22px;border:1px dashed var(--line);border-radius:11px;padding:14px}
   .signals .t{font-family:var(--mono);font-size:10.5px;letter-spacing:.16em;text-transform:uppercase;
     color:var(--ok);font-weight:700;margin-bottom:8px}
@@ -590,6 +593,21 @@ function onboardFromProspect(){
 
 
 // ================== ONE-TAP DEMO FOR THIS PROSPECT ==================
+// Opens the phone's own Messages app with the text pre-written, so it sends
+// from YOUR real number — arrives instantly, they can reply, no A2P needed.
+function smsLink(toNumber, body){
+  const num = String(toNumber||"").replace(/[^+\d]/g,"");
+  // Apple wants "&body=", Android wants "?body="
+  const sep = /iPhone|iPad|iPod|Macintosh|Mac OS/.test(navigator.userAgent) ? "&" : "?";
+  return `sms:${num}${sep}body=${encodeURIComponent(body)}`;
+}
+
+function demoTextBody(p){
+  const who = p.ownerName ? p.ownerName : "there";
+  const num = demoState.number || "";
+  return `Hey ${who} — Luke here. Give it a try: call ${num} and talk to it like you're a customer. It'll answer as ${p.businessName}.`;
+}
+
 let demoState = { forId: null, live: false, number: "", foundSite: false };
 
 async function activateDemoFor(p, mountId){
@@ -605,6 +623,8 @@ async function activateDemoFor(p, mountId){
     if(!r.ok || !d.ok){ setDemoStatus("Couldn't set it up: " + (d.error||"failed"), "var(--danger)"); return; }
     demoState = { forId: p.id, live: true, number: d.demoNumber || "", foundSite: !!d.foundWebsiteInfo };
     renderDemoCard(p, mountId);
+    const flag = document.getElementById("demoFlag");
+    if(flag) flag.textContent = "✓ demo ready · " + demoState.number;
   }catch(e){
     if(btn) btn.disabled = false;
     setDemoStatus("Couldn't reach the server.", "var(--danger)");
@@ -645,19 +665,34 @@ function demoCardHTML(p){
     </div>`;
   }
   const tel = "tel:" + String(demoState.number).replace(/[^+\d]/g,"");
+  const body = demoTextBody(p);
   return `<div class="demoCard">
     <div class="t">✓ Demo is live as ${esc(p.businessName)}${demoState.foundSite?" · pulled their site":""}</div>
     <div style="font-size:14.5px;color:var(--muted);margin-bottom:2px">Tell them to call this number:</div>
     <div class="demoNum"><a href="${tel}">${esc(demoState.number || "(no number set)")}</a></div>
     <div style="font-size:13px;color:var(--muted);line-height:1.5">
-      Say it out loud — "call ${esc(demoState.number)} right now and talk to it like a customer with a leak."</div>
+      "Call ${esc(demoState.number)} right now and talk to it like a customer with a leak."</div>
+
     <div class="demoRow">
-      <input id="demoTo" inputmode="tel" placeholder="their cell" value="${esc(p.phone||"")}"/>
-      <button id="demoTextBtn" onclick="textDemoTo(currentProspect)">Text it</button>
+      <input id="demoTo" inputmode="tel" placeholder="their cell" value="${esc(p.phone||"")}"
+        oninput="refreshSmsHref(currentProspect)"/>
+      <a id="smsBtn" class="smsbtn" href="${smsLink(p.phone||"", body)}">📲 Text it</a>
     </div>
+    <div class="hint" style="margin-top:7px">Opens your Messages — sends from your own number, so they can reply.</div>
     <div class="err" id="demoStatus" style="color:var(--muted)"></div>
-    <button class="btn-ghost btn-sm" style="margin-top:11px" onclick="activateDemoFor(currentProspect,'demoMount')">↻ Re-activate</button>
+
+    <div style="display:flex;gap:8px;margin-top:12px">
+      <button class="btn-ghost btn-sm" onclick="activateDemoFor(currentProspect,'demoMount')">↻ Re-activate</button>
+      <button class="btn-ghost btn-sm" id="demoTextBtn" onclick="textDemoTo(currentProspect)">Send via Twilio</button>
+    </div>
   </div>`;
+}
+
+// keep the sms: link in sync as you type their number
+function refreshSmsHref(p){
+  const a = document.getElementById("smsBtn"); if(!a) return;
+  const num = (document.getElementById("demoTo")||{}).value || "";
+  a.href = smsLink(num, demoTextBody(p));
 }
 
 function renderDemoCard(p, mountId){
@@ -680,6 +715,10 @@ function openScript(){
   scriptProspect = currentProspect;
   scriptStack = [];
   renderScript("dial");
+  // Warm the demo up NOW so it's already live by the time you need it mid-call.
+  if(!(demoState.live && demoState.forId === currentProspect.id)){
+    activateDemoFor(currentProspect, "demoMount");
+  }
 }
 
 function scriptGo(id){
@@ -712,7 +751,8 @@ function renderScript(id, pushed){
   $("#view").innerHTML = `
     <div class="scriptbar">
       <div class="who">${esc(scriptProspect.businessName)}
-        <span>Live call script</span></div>
+        <span id="demoFlag">${(demoState.live && demoState.forId===scriptProspect.id)
+          ? "✓ demo ready · " + esc(demoState.number) : "setting demo up…"}</span></div>
       <div style="display:flex;gap:7px">
         ${scriptStack.length>1?`<button class="btn-ghost btn-sm" onclick="scriptBack()">‹ Back</button>`:""}
         <button class="btn-ghost btn-sm" onclick="showProspect('${scriptProspect.id}')">Close</button>
