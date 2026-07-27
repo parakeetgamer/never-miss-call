@@ -313,8 +313,8 @@ window.CALL_SCRIPT = {
 
   opener: {
     stage: "The opener — first 5 seconds",
-    say: "Hey, is this {OWNER}? … {OWNER}, this is Luke with Never Miss a Call — I'm local, over in Hillsboro. I know you weren't expecting my call — can I grab you for 30 seconds, and you can tell me to buzz off if it's useless?",
-    why: "Name both of you, then ask permission. Gong: this style hits ~11% success. NEVER say \"did I catch you at a bad time?\" — that's the worst opener there is (0.9%).",
+    say: "Hey, is this {OWNER}? … {OWNER}, this is Luke — I'm local, over in Hillsboro. I know you weren't expecting my call — can I grab you for 30 seconds, and you can tell me to buzz off if it's useless?",
+    why: "Just your name — no company. \"Luke, local, Hillsboro\" sounds like a person; a brand they've never heard sounds like a telemarketer. Then ask permission. NEVER say \"did I catch you at a bad time?\" — worst opener there is (0.9%).",
     options: [
       { label: "\"I'm on a job / I'm busy\"", goto: "o_busy" },
       { label: "\"Not interested\"", goto: "o_notint" },
@@ -328,8 +328,8 @@ window.CALL_SCRIPT = {
   },
   o_who: {
     stage: "Opener · who are you",
-    say: "Fair question — I'm Luke, I'm local, over in Hillsboro. I work with plumbers on the calls that go to voicemail when you're out on a job. That's the whole reason I'm calling.",
-    why: "State your reason for calling — Gong found that alone lifts success 2.1x.",
+    say: "Fair question — I'm Luke, my company's Never Miss a Call, I'm local over in Hillsboro. I work with plumbers on the calls that go to voicemail when you're out on a job. That's the whole reason I'm calling.",
+    why: "NOW give the company name — asked-for beats announced. Then straight to your reason for calling, which alone lifts success 2.1x.",
     options: [
       { label: "\"Okay, go on\"", goto: "hook" },
       { label: "\"Not interested\"", goto: "o_notint" },
@@ -771,3 +771,5 @@ window.BUYING_SIGNALS = [
   "They repeat a benefit back to you positively",
   "They go quiet after the demo (they're doing the math — don't fill the silence)",
 ];
+
+
