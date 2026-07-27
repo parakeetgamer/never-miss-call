@@ -160,6 +160,14 @@
     padding:11px 13px;margin-bottom:7px;font-size:14.5px;line-height:1.4}
   .demoCard{background:var(--panel);border:1px solid var(--line);border-left:4px solid var(--ok);
     border-radius:13px;padding:17px;margin:16px 0}
+  .payCard{background:var(--panel);border:1px solid var(--line);border-left:4px solid var(--amber);
+    border-radius:13px;padding:17px;margin:16px 0}
+  .payCard .t{font-family:var(--mono);font-size:10.5px;letter-spacing:.18em;text-transform:uppercase;
+    color:var(--amber);font-weight:700;margin-bottom:10px}
+  .paylink{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;
+    background:var(--amber);color:#1a1405;text-decoration:none;font-weight:800;font-size:16px;
+    padding:16px;border-radius:11px;margin-top:4px}
+  .paylink:active{transform:translateY(1px)}
   .demoCard .t{font-family:var(--mono);font-size:10.5px;letter-spacing:.18em;text-transform:uppercase;
     color:var(--ok);font-weight:700;margin-bottom:10px}
   .demoNum{font-family:var(--mono);font-size:27px;font-weight:800;letter-spacing:.01em;margin:8px 0 2px}
@@ -608,6 +616,12 @@ function demoTextBody(p){
   return `Hey ${who} — Luke here. Give it a try: call ${num} and talk to it like you're a customer. It'll answer as ${p.businessName}.`;
 }
 
+function paymentTextBody(p){
+  const who = p.ownerName ? p.ownerName : "there";
+  const link = localStorage.getItem("stripeLink") || "";
+  return `Hey ${who} — Luke here, great talking with you. Here's the link to get set up: ${link}\n\nI'll get everything running today.`;
+}
+
 let demoState = { forId: null, live: false, number: "", foundSite: false };
 
 async function activateDemoFor(p, mountId){
@@ -653,6 +667,21 @@ async function textDemoTo(p){
 function setDemoStatus(msg, color){
   const el = $("#demoStatus"); if(!el) return;
   el.style.color = color || "var(--muted)"; el.textContent = msg;
+}
+
+
+function paymentCardHTML(p){
+  const link = localStorage.getItem("stripeLink") || "";
+  if(!link){
+    return `<div class="payCard"><div class="t">Payment link</div>
+      <div style="font-size:14px;color:var(--muted);line-height:1.5">
+        No Stripe link saved yet. Paste it once in Step 6 of onboarding and it's remembered for every close from here on.</div></div>`;
+  }
+  return `<div class="payCard">
+    <div class="t">Send the payment link</div>
+    <a class="paylink" href="${smsLink(p.phone||"", paymentTextBody(p))}">💳 Text ${esc(p.businessName)} the payment link</a>
+    <div class="hint" style="margin-top:8px">Opens Messages with the link already written — sends from your number.</div>
+  </div>`;
 }
 
 function demoCardHTML(p){
@@ -755,6 +784,7 @@ function renderScript(id, pushed){
     : "";
   // Mount point for the live-demo controls (only on nodes flagged action:"demo")
   const demoBox = n.action === "demo" ? `<div id="demoMount"></div>` : "";
+  const payBox = (kind === "close") ? paymentCardHTML(scriptProspect) : "";
   const signals = (id==="dial" || id==="afterdemo")
     ? `<div class="signals"><div class="t">Buying signals — stop selling, close</div><ul style="margin:0;padding-left:16px">
         ${window.BUYING_SIGNALS.map(x=>`<li>${esc(x)}</li>`).join("")}</ul></div>` : "";
@@ -777,6 +807,7 @@ function renderScript(id, pushed){
       ${n.why?`<div class="why"><b>Why</b><span>${esc(fill(n.why))}</span></div>`:""}
     </div>
     ${demoBox}
+    ${payBox}
     ${next}
     ${opts?`<div class="theysay">${n.next?"Then":"What do they say? &nbsp;<em style=\"font-style:normal;opacity:.55;letter-spacing:0;text-transform:none\">most likely first</em>"}</div>${opts}`:""}
     ${signals}`;
