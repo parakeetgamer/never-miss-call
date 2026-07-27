@@ -1,7 +1,7 @@
 // db.js — dependency-free JSON-file store for captured leads.
 // Zero native modules = deploys cleanly anywhere (Render, Railway, Fly, a VPS).
 // Plenty for a solo operator's volume. Swap for Postgres later if you scale.
-import { existsSync, mkdirSync } from "fs";
+import { existsSync, mkdirSync, statSync } from "fs";
 import { readJSON, writeJSON } from "./store.js";
 import { fileURLToPath } from "url";
 import { dirname, join } from "path";
@@ -19,11 +19,33 @@ const EMPTY = { seq: 0, leads: [] };
 // NOTE: read() intentionally propagates a corrupt-file error instead of
 // returning empty — see store.js. Silently returning "no leads" is what would
 // let the next save wipe a client's history.
+// Client dashboards poll every few seconds. Without a cache that means
+// re-reading and re-parsing the ENTIRE leads file on every poll, synchronously,
+// which blocks the event loop that's bridging live call audio. Cache the parsed
+// state and only re-read when the file actually changes on disk.
+let _cache = null;
+let _cacheKey = "";
+
+function fileKey() {
+  try {
+    const st = statSync(FILE);
+    return `${st.mtimeMs}:${st.size}`;
+  } catch {
+    return "none";
+  }
+}
+
 function read() {
-  return readJSON(FILE, EMPTY);
+  const key = fileKey();
+  if (_cache && key === _cacheKey) return _cache;
+  _cache = readJSON(FILE, EMPTY);
+  _cacheKey = key;
+  return _cache;
 }
 function write(state) {
   writeJSON(FILE, state);
+  _cache = state;          // we just wrote it — no need to re-read
+  _cacheKey = fileKey();
 }
 
 export function saveLead(lead) {
@@ -76,6 +98,8 @@ export function deleteLeadsByClient(clientId) {
 }
 
 export default { saveLead, listLeads, listLeadsByClient, deleteLeadsByClient };
+
+
 
 
 

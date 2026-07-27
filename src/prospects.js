@@ -81,15 +81,25 @@ export function getProspect(id) {
 }
 
 /** Add businesses, skipping any whose phone number we already have. */
+// Match on phone when we have one; otherwise fall back to name+city, so a
+// business with no listed number can't be added over and over.
+function dedupeKey(p) {
+  const phone = normalizePhone(p.phone);
+  if (phone) return "p:" + phone;
+  const name = String(p.businessName || "").toLowerCase().replace(/[^a-z0-9]/g, "");
+  const city = String(p.city || "").toLowerCase().replace(/[^a-z0-9]/g, "");
+  return name ? "n:" + name + "|" + city : "";
+}
+
 export function addProspects(items) {
   const list = load();
-  const seen = new Set(list.map((p) => normalizePhone(p.phone)).filter(Boolean));
+  const seen = new Set(list.map(dedupeKey).filter(Boolean));
   const added = [];
   for (const raw of items) {
     const p = normalize(raw);
-    const key = normalizePhone(p.phone);
+    const key = dedupeKey(p);
     if (key && seen.has(key)) continue; // already on the list
-    seen.add(key);
+    if (key) seen.add(key);
     list.push(p);
     added.push(p);
   }
@@ -137,3 +147,5 @@ export function stats() {
   for (const p of list) by[p.status] = (by[p.status] || 0) + 1;
   return { total: list.length, ...by };
 }
+
+

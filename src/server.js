@@ -17,7 +17,7 @@ import { startCallBridge } from "./realtime.js";
 import { listLeads, listLeadsByClient } from "./db.js";
 import { adminRouter } from "./admin.js";
 import { PASSWORD, checkAdmin } from "./auth.js";
-import { getClientByNumber, toBizConfig, getClientByToken } from "./clients.js";
+import { getClientByNumber, toBizConfig, getClientByToken, normalizeNumber } from "./clients.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -28,6 +28,29 @@ const defaultBiz = JSON.parse(
 );
 // The business the demo currently answers as. Changed live via /api/demo/activate.
 let activeDemo = { ...defaultBiz, demoMode: process.env.DEMO_SERVER === "true" };
+
+// A prospect often calls the demo number MINUTES OR HOURS after you gave it to
+// them — by which point you've moved on and activated a demo for someone else.
+// So remember which business we set up for which caller, and answer as THEIR
+// shop when they ring, regardless of what the "current" demo is.
+const demoHandouts = new Map(); // caller phone -> { biz, at }
+const DEMO_MEMORY_MS = 24 * 60 * 60 * 1000;
+
+function rememberDemoFor(phone, biz) {
+  const key = normalizeNumber(phone);
+  if (!key) return;
+  demoHandouts.set(key, { biz, at: Date.now() });
+  console.log(`[demo] will answer as "${biz.businessName}" if ${key} calls back`);
+}
+
+function demoForCaller(callerPhone) {
+  const key = normalizeNumber(callerPhone);
+  if (!key) return null;
+  const hit = demoHandouts.get(key);
+  if (!hit) return null;
+  if (Date.now() - hit.at > DEMO_MEMORY_MS) { demoHandouts.delete(key); return null; }
+  return hit.biz;
+}
 
 const env = {
   apiKey: process.env.OPENAI_API_KEY,
@@ -149,6 +172,8 @@ app.post("/api/demo/activate", async (req, res) => {
   try {
     activeDemo = await buildDemoBiz(req.body || {});
     console.log(`[demo] activated as "${activeDemo.businessName}" (site info: ${activeDemo.websiteInfo ? "yes" : "none"})`);
+    // so this prospect still hears THEIR shop if they call back later
+    if (req.body && req.body.prospectPhone) rememberDemoFor(req.body.prospectPhone, activeDemo);
     res.json({
       ok: true,
       businessName: activeDemo.businessName,
@@ -271,12 +296,17 @@ wss.on("connection", (twilioWs, req) => {
     twilioWs.off("message", onFirstMessages);
 
     const paramTo = msg.start?.customParameters?.to || "";
+    const paramFrom = msg.start?.customParameters?.from || "";
     const dialed = paramTo || urlTo;
     const client = getClientByNumber(dialed);
-    const biz = client ? toBizConfig(client) : activeDemo;
+    // paying client first; then "did we hand this exact caller a demo?"; then the current demo
+    const remembered = client ? null : demoForCaller(paramFrom);
+    const biz = client ? toBizConfig(client) : (remembered || activeDemo);
 
     if (client) {
       console.log(`[call] routed to client "${biz.businessName}" (dialed ${dialed})`);
+    } else if (remembered) {
+      console.log(`[call] demo caller ${paramFrom} → answering as "${biz.businessName}" (their own demo)`);
     } else {
       console.log(
         `[call] no client for "${dialed || "(none)"}" — using demo "${biz.businessName}" ` +
@@ -287,6 +317,8 @@ wss.on("connection", (twilioWs, req) => {
   }
   twilioWs.on("message", onFirstMessages);
 });
+
+
 
 
 

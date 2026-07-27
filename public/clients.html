@@ -617,6 +617,8 @@ async function activateDemoFor(p, mountId){
     const r = await api("/api/demo/activate", { method:"POST", body: JSON.stringify({
       businessName: p.businessName, ownerName: p.ownerName || "",
       website: p.website || "", trade: p.trade || "", city: p.city || "",
+      // so if they call the demo number an hour from now they still hear THEIR shop
+      prospectPhone: p.phone || "",
     })});
     const d = await r.json();
     if(btn) btn.disabled = false;
@@ -734,6 +736,13 @@ function scriptBack(){
 }
 
 function renderScript(id, pushed){
+  if(!window.CALL_SCRIPT){
+    $("#view").innerHTML = `<div class="empty"><b>Call script didn't load.</b>
+      Hard-refresh the page (Cmd+Shift+R). If it keeps happening, the script file
+      failed to download.</div>
+      <button class="btn-ghost" style="width:100%;margin-top:12px" onclick="showCallList()">‹ Back to call list</button>`;
+    return;
+  }
   const n = window.CALL_SCRIPT[id];
   if(!n){ showProspect(scriptProspect.id); return; }
   if(!pushed && scriptStack[scriptStack.length-1] !== id) scriptStack.push(id);
@@ -827,5 +836,7 @@ if(pw){
 </script>
 </body>
 </html>
+
+
 
 
