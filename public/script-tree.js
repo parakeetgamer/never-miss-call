@@ -9,7 +9,7 @@ window.CALL_SCRIPT = {
   // ---------- more openers you'll actually hear ----------
   o_driving: {
     stage: "Opener · he's driving",
-    say: "No problem at all — I'd rather you keep both hands on the wheel. When are you usually parked, first thing in the morning or end of day? I'll catch you then.",
+    say: "Oh, no worries — keep both hands on the wheel. When are you usually parked? Mornings or end of day?",
     why: "Never pitch a guy driving. You'll lose him and look inconsiderate. Get the time and go.",
     options: [
       { label: "\"Morning's better\" / gives a time", goto: "schedule" },
@@ -20,7 +20,7 @@ window.CALL_SCRIPT = {
   o_dnc: {
     stage: "Opener · take me off your list",
     kind: "exit",
-    say: "You got it — I'll take you off right now and you won't hear from me again. Sorry to bother you, have a good one.",
+    say: "Yep, done — taking you off right now, you won't hear from me again. Sorry to bug you. Have a good one.",
     why: "STOP. Honor it immediately, no rebuttal, no 'just one question.' This is a legal do-not-call request, and arguing is both illegal and pointless.",
     next: [
       "Mark them DEAD in this app right now",
@@ -31,7 +31,7 @@ window.CALL_SCRIPT = {
   },
   o_hostile: {
     stage: "Opener · he's annoyed",
-    say: "Totally fair — you get a hundred of these a week and most of them are garbage. I'll get out of your hair. Sorry to catch you at a bad moment.",
+    say: "Yeah, totally fair — you probably get a hundred of these and most of 'em are garbage. I'll get out of your hair. Sorry man.",
     why: "Do NOT push back on an angry guy. Exit warm and he might take your call in three months. Argue and he never will — and he talks to other contractors.",
     options: [
       { label: "\"...alright, what is it?\"", goto: "hook" },
@@ -81,7 +81,7 @@ window.CALL_SCRIPT = {
   // ---------- demo-ask variations ----------
   d_notime: {
     stage: "Ask · no time right now",
-    say: "Two minutes, and you don't have to do anything but dial a number and listen. If you've got five minutes at the end of the day, I'll set it up and text you the number so you can call it whenever. What's the best cell?",
+    say: "Two minutes, and all you do is dial a number and listen. Or I'll set it up and text you the number so you can call it whenever you've got a sec. What's your cell?",
     why: "Shrink the ask and take the work off him. Still capture the cell either way.",
     options: [
       { label: "Gives the number", goto: "demo_setup" },
@@ -270,7 +270,7 @@ window.CALL_SCRIPT = {
   voicemail: {
     stage: "Voicemail — keep it under 20 seconds",
     kind: "schedule",
-    say: "Hey {OWNER}, it's Luke — I'm local, over in Hillsboro. Quick one about the calls that slip to voicemail when you're on a job. I've got a fix a few plumbers around here are using. I'll shoot you a text so you've got my number. Again, Luke, 503-894-5568. Talk soon.",
+    say: "Hey {OWNER}, it's Luke — I'm local, over in Hillsboro. Cold call, I know. Quick thing about the calls that slip to voicemail when you're on a job — got something a few plumbers around here are using. I'll shoot you a text so you've got my number. Again, Luke, 503-894-5568.",
     why: "Voicemail alone rarely gets a callback — but voicemail PLUS a text roughly doubles reply rates. Say your number slowly. Max 2 voicemails ever.",
     next: [
       "Send the text right now, while you're still thinking about it",
@@ -283,7 +283,7 @@ window.CALL_SCRIPT = {
 
   gatekeeper: {
     stage: "Someone else answered",
-    say: "Oh hey — is {OWNER} around? … No worries. This is Luke, I'm local — over in Hillsboro. I work with plumbers on the calls that go to voicemail when they're out on a job. Is he the one I'd talk to about that?",
+    say: "Oh hey — is {OWNER} around? … No worries. I'm Luke, I'm local, over in Hillsboro. Total cold call, I'll admit it — but I work with plumbers on the calls that go to voicemail when nobody can get to the phone. Is he the guy I'd talk to?",
     why: "Warm, casual, and name-first. Don't sound like a pitch or you get screened.",
     options: [
       { label: "\"Hang on, I'll get him\"", goto: "opener" },
@@ -294,7 +294,7 @@ window.CALL_SCRIPT = {
   },
   gk_out: {
     stage: "Owner unavailable",
-    say: "Figures — that's kind of the whole point of my call, actually. When's he usually easiest to catch, first thing in the morning or end of day?",
+    say: "Ha — that's kinda the whole point of my call, actually. When's he easiest to catch? Mornings, or end of day?",
     why: "Use his absence as the proof of your pitch, and get a real time instead of a vague callback.",
     options: [
       { label: "They give you a time", goto: "schedule" },
@@ -303,7 +303,7 @@ window.CALL_SCRIPT = {
   },
   gk_what: {
     stage: "Gatekeeper screening",
-    say: "Sure — I help plumbers around here catch the calls that go to voicemail when nobody can get to the phone. Takes about 30 seconds to explain, is he free?",
+    say: "Yeah — I help plumbers catch the calls that go to voicemail when nobody can get to the phone. Takes like thirty seconds to explain. Is he around?",
     why: "Answer honestly and briefly. Evasiveness is what gets you screened.",
     options: [
       { label: "Puts you through", goto: "opener" },
@@ -313,8 +313,8 @@ window.CALL_SCRIPT = {
 
   opener: {
     stage: "The opener — first 5 seconds",
-    say: "Hey, is this {OWNER}? … {OWNER}, this is Luke — I'm local, over in Hillsboro. I know you weren't expecting my call — can I grab you for 30 seconds, and you can tell me to buzz off if it's useless?",
-    why: "Just your name — no company. \"Luke, local, Hillsboro\" sounds like a person; a brand they've never heard sounds like a telemarketer. Then ask permission. NEVER say \"did I catch you at a bad time?\" — worst opener there is (0.9%).",
+    say: "Hey — is this {OWNER}? … Hey {OWNER}, I'm Luke. I'll be straight with you, this is a cold call. I'm local though, over in Hillsboro. Gimme twenty seconds and if it's useless just tell me to get lost?",
+    why: "Say it's a cold call before he has to figure it out — it disarms him and you stop sounding like you're hiding something. Then twenty seconds + an easy out. NEVER say \"did I catch you at a bad time?\" — worst opener there is (0.9%). Then STOP TALKING.",
     options: [
       { label: "\"I'm on a job / I'm busy\"", goto: "o_busy" },
       { label: "\"Not interested\"", goto: "o_notint" },
@@ -328,7 +328,7 @@ window.CALL_SCRIPT = {
   },
   o_who: {
     stage: "Opener · who are you",
-    say: "Fair question — I'm Luke, my company's Never Miss a Call, I'm local over in Hillsboro. I work with plumbers on the calls that go to voicemail when you're out on a job. That's the whole reason I'm calling.",
+    say: "Yeah, fair — I'm Luke, my company's Never Miss a Call. I'm over in Hillsboro. I just work with plumbers on the calls that go to voicemail when you're stuck on a job. That's the whole thing.",
     why: "NOW give the company name — asked-for beats announced. Then straight to your reason for calling, which alone lifts success 2.1x.",
     options: [
       { label: "\"Okay, go on\"", goto: "hook" },
@@ -337,7 +337,7 @@ window.CALL_SCRIPT = {
   },
   o_notint: {
     stage: "Opener · reflex brush-off",
-    say: "Fair enough — most guys say that before they've heard it, no hard feelings. Can I ask one thing and then I'm gone: are you totally good with the calls you miss when you're on a job, or is that just something you've lived with?",
+    say: "Yeah, no, totally fair — I'd probably say the same thing. One question and then I'm gone: the calls you miss when you're on a job, does that bug you at all? Or is it just kinda how it is?",
     why: "About 80% of early \"not interested\" is reflex, not a real decision. One disruptive question reopens it. Ask it, then go quiet.",
     options: [
       { label: "\"...well, it's annoying\"", goto: "hook" },
@@ -347,7 +347,7 @@ window.CALL_SCRIPT = {
   },
   o_busy: {
     stage: "Opener · he's working",
-    say: "No worries, I figured — that's literally what I'm calling about. Twenty seconds and I'm gone, or if it's better, when should I catch you: first thing tomorrow or end of day?",
+    say: "Yeah, figured — that's actually the whole thing I'm calling about. Twenty seconds, or I can catch you later. What's better, mornings or end of day?",
     why: "Don't fight it. Agree, then either take 20 seconds or lock a specific time.",
     options: [
       { label: "\"Fine, 20 seconds\"", goto: "hook" },
@@ -357,7 +357,7 @@ window.CALL_SCRIPT = {
   },
   o_number: {
     stage: "Opener · how'd you get my number",
-    say: "Off your Google listing — same place your customers find you. I'm not a robocall, it's just me, and I'm local. Can I take 30 seconds?",
+    say: "Your Google listing — same place your customers find you. It's just me, not a robocall. Twenty seconds?",
     why: "Answer plainly. Any dodge here and you're a scammer in his head.",
     options: [
       { label: "\"Alright, go\"", goto: "hook" },
@@ -367,7 +367,7 @@ window.CALL_SCRIPT = {
 
   hook: {
     stage: "The hook — make him feel the leak",
-    say: "The reason I'm calling — I work with plumbers around here, and the thing I keep hearing is they're losing jobs they never even knew rang in. You're under a sink or up on a roof, the phone rings, goes to voicemail — and about 8 out of 10 of those folks don't leave a message. They just call the next guy on Google. Sound familiar?",
+    say: "So basically — I work with plumbers around here, and everybody tells me the same thing. You're under a sink, phone rings, goes to voicemail. And most people don't leave one, they just call the next guy on Google. That happen to you much?",
     why: "Problem-first language books ~3x better than feature talk. End on a yes-question and STOP.",
     options: [
       { label: "\"Yeah, that happens\"", goto: "qualify" },
@@ -381,7 +381,7 @@ window.CALL_SCRIPT = {
   },
   h_sales: {
     stage: "Hook · called out",
-    say: "Ha — yeah, it is. I'm not going to pretend otherwise. But it's 30 seconds and there's a free way to see if it's even real for you. Still want me to buzz off?",
+    say: "Ha — yeah, told you up front. It's still a real thing though, and there's a free way to see if it even matters for you. Want me to keep going or get lost?",
     why: "Radical honesty disarms. Trying to dodge it destroys trust instantly with this buyer.",
     options: [
       { label: "\"...alright, keep going\"", goto: "qualify" },
@@ -391,7 +391,7 @@ window.CALL_SCRIPT = {
 
   qualify: {
     stage: "One question — then listen",
-    say: "Out of curiosity — when you're on a job and can't pick up, what happens to that call right now? Voicemail, or does it go to anybody?",
+    say: "So when you're on a job and can't grab it — where's that call going right now? Voicemail, or does somebody catch it?",
     why: "One question, not an interrogation. His own answer sets up the demo. Aim for ~55% talking / 45% listening on a cold call.",
     options: [
       { label: "\"Voicemail\" / \"Nothing\"", goto: "demo_ask" },
@@ -402,7 +402,7 @@ window.CALL_SCRIPT = {
 
   demo_ask: {
     stage: "The ask — sell the DEMO, not the product",
-    say: "So here's what I do, and honestly it's easier to hear than explain. I set up an assistant that answers in your business's name when you can't, gets the caller's name, number and what they need, and texts you the lead before you're off the ladder. I can set it up as {BIZ} right now and you call it and hear it yourself. Takes two minutes. Want to hear it?",
+    say: "Okay so — honestly it's way easier to just hear it than have me explain it. Basically it picks up as {BIZ} when you can't, grabs their name, number, what they need, and texts it straight to you. I can flip it on as your shop right now and you call it yourself. Two minutes. Wanna?",
     why: "Never sell the product on a cold call — sell the demo. The demo is what closes.",
     options: [
       { label: "\"How much is it?\"", goto: "d_price" },
@@ -415,7 +415,7 @@ window.CALL_SCRIPT = {
   },
   d_info: {
     stage: "Ask · send me info",
-    say: "Happy to — but honestly a link in your inbox won't do it justice, and I don't want to just add to the pile. What'd actually show you if it's worth anything is hearing it answer as {BIZ}. Two minutes. What's the best cell — I'll set it up right now and text you the number.",
+    say: "Yeah I can — but honestly a link in your inbox isn't gonna do much, you'll just never look at it. What actually shows you is hearing it pick up as {BIZ}. Two minutes. What's your cell? I'll set it up right now and text you the number.",
     why: "\"Send info\" is a soft no. Acknowledge, redirect to the demo, but still capture the cell.",
     options: [
       { label: "Gives you the number", goto: "demo_setup" },
@@ -424,7 +424,7 @@ window.CALL_SCRIPT = {
   },
   d_price: {
     stage: "Ask · price came up early — PARK IT",
-    say: "Straight answer, it's a couple hundred a month — but don't decide on that yet, because it means nothing until you've heard it. Let me set it up as {BIZ}, you call it, and if it sounds bad the price doesn't matter anyway. Two minutes?",
+    say: "Straight answer — couple hundred a month. But don't decide off that yet, it doesn't mean anything till you've heard it. Let me flip it on as {BIZ}, you call it, and if it sounds bad then the price is irrelevant anyway. Two minutes?",
     why: "Top reps save price for last. Give an honest ballpark, don't dodge — then pivot straight back to the demo.",
     options: [
       { label: "\"Fine, let's hear it\"", goto: "demo_setup" },
