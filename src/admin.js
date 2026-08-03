@@ -14,6 +14,7 @@ import { fetchSiteText, extractBusinessInfo } from "./scrape.js";
 import {
   listProspects, getProspect, addProspects, logCall,
   updateProspect, removeProspect, stats as prospectStats,
+  dailyCallCounts, todayCallCount,
 } from "./prospects.js";
 import { searchBusinesses, placesConfigured } from "./places.js";
 
@@ -127,6 +128,11 @@ export function adminRouter() {
 
   // ---------------- call list (prospects) ----------------
 
+  // Daily call counts — how many calls you actually made, each day.
+  router.get("/clients/api/calls/daily", auth, (_req, res) => {
+    res.json({ today: todayCallCount(), days: dailyCallCounts(60) });
+  });
+
   router.get("/clients/api/prospects", auth, (_req, res) => {
     res.json({
       prospects: listProspects(),
@@ -205,6 +211,8 @@ export function adminRouter() {
 
   return router;
 }
+
+
 
 
 

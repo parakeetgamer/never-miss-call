@@ -81,25 +81,15 @@ export function getProspect(id) {
 }
 
 /** Add businesses, skipping any whose phone number we already have. */
-// Match on phone when we have one; otherwise fall back to name+city, so a
-// business with no listed number can't be added over and over.
-function dedupeKey(p) {
-  const phone = normalizePhone(p.phone);
-  if (phone) return "p:" + phone;
-  const name = String(p.businessName || "").toLowerCase().replace(/[^a-z0-9]/g, "");
-  const city = String(p.city || "").toLowerCase().replace(/[^a-z0-9]/g, "");
-  return name ? "n:" + name + "|" + city : "";
-}
-
 export function addProspects(items) {
   const list = load();
-  const seen = new Set(list.map(dedupeKey).filter(Boolean));
+  const seen = new Set(list.map((p) => normalizePhone(p.phone)).filter(Boolean));
   const added = [];
   for (const raw of items) {
     const p = normalize(raw);
-    const key = dedupeKey(p);
+    const key = normalizePhone(p.phone);
     if (key && seen.has(key)) continue; // already on the list
-    if (key) seen.add(key);
+    seen.add(key);
     list.push(p);
     added.push(p);
   }
@@ -138,6 +128,39 @@ export function removeProspect(id) {
   const next = list.filter((p) => p.id !== id);
   persist(next);
   return list.length !== next.length;
+}
+
+// Daily call counts, straight from the timestamped call log — nothing extra to
+// maintain, and it can't drift from reality because it IS the reality.
+export function dailyCallCounts(days = 30) {
+  const list = load();
+  const byDay = new Map();
+  for (const p of list) {
+    for (const c of p.calls || []) {
+      const key = dayKey(c.at);
+      const d = byDay.get(key) || { date: key, calls: 0, demos: 0, won: 0 };
+      d.calls++;
+      if (c.status === "demo") d.demos++;
+      if (c.status === "won") d.won++;
+      byDay.set(key, d);
+    }
+  }
+  const out = [...byDay.values()].sort((a, b) => (a.date < b.date ? 1 : -1));
+  return out.slice(0, days);
+}
+
+// YYYY-MM-DD in LOCAL time (not UTC) so "today" means today where you are.
+function dayKey(ts) {
+  const d = new Date(ts);
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${d.getFullYear()}-${m}-${day}`;
+}
+
+export function todayCallCount() {
+  const today = dayKey(Date.now());
+  const row = dailyCallCounts(400).find((d) => d.date === today);
+  return row ? row.calls : 0;
 }
 
 export function stats() {

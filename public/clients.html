@@ -160,14 +160,6 @@
     padding:11px 13px;margin-bottom:7px;font-size:14.5px;line-height:1.4}
   .demoCard{background:var(--panel);border:1px solid var(--line);border-left:4px solid var(--ok);
     border-radius:13px;padding:17px;margin:16px 0}
-  .payCard{background:var(--panel);border:1px solid var(--line);border-left:4px solid var(--amber);
-    border-radius:13px;padding:17px;margin:16px 0}
-  .payCard .t{font-family:var(--mono);font-size:10.5px;letter-spacing:.18em;text-transform:uppercase;
-    color:var(--amber);font-weight:700;margin-bottom:10px}
-  .paylink{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;
-    background:var(--amber);color:#1a1405;text-decoration:none;font-weight:800;font-size:16px;
-    padding:16px;border-radius:11px;margin-top:4px}
-  .paylink:active{transform:translateY(1px)}
   .demoCard .t{font-family:var(--mono);font-size:10.5px;letter-spacing:.18em;text-transform:uppercase;
     color:var(--ok);font-weight:700;margin-bottom:10px}
   .demoNum{font-family:var(--mono);font-size:27px;font-weight:800;letter-spacing:.01em;margin:8px 0 2px}
@@ -178,6 +170,19 @@
   .smsbtn{flex-shrink:0;display:flex;align-items:center;padding:0 18px;border-radius:10px;
     background:var(--ok);color:#12200a;font-weight:800;font-size:15px;text-decoration:none}
   .smsbtn:active{transform:translateY(1px)}
+  .todayBig{background:var(--panel);border:1px solid var(--line);border-left:4px solid var(--amber);
+    border-radius:14px;padding:22px;text-align:center;margin-bottom:18px}
+  .todayBig .n{font-size:64px;font-weight:800;line-height:1;letter-spacing:-.03em;color:var(--amber)}
+  .todayBig .lbl{font-family:var(--mono);font-size:11px;letter-spacing:.2em;text-transform:uppercase;
+    color:var(--muted);margin-top:9px}
+  .todayBig .dt{font-size:13.5px;color:var(--muted);margin-top:4px}
+  .dayrow{display:flex;align-items:center;justify-content:space-between;gap:12px;
+    background:var(--card);border:1px solid var(--line);border-radius:10px;
+    padding:13px 15px;margin-bottom:8px}
+  .dayrow .d{font-weight:700;font-size:15px}
+  .dayrow .sub{font-family:var(--mono);font-size:11.5px;color:var(--muted);margin-top:3px}
+  .dayrow .c{font-family:var(--mono);font-size:22px;font-weight:800;color:var(--amber)}
+  .dayrow.isToday{border-color:var(--amber)}
   .signals{margin-top:22px;border:1px dashed var(--line);border-radius:11px;padding:14px}
   .signals .t{font-family:var(--mono);font-size:10.5px;letter-spacing:.16em;text-transform:uppercase;
     color:var(--ok);font-weight:700;margin-bottom:8px}
@@ -203,6 +208,7 @@
   <div class="tabs">
     <button id="tabCalls" class="on" onclick="showCallList()">Call list<span class="count" id="cCalls"></span></button>
     <button id="tabClients" onclick="showList()">Clients<span class="count" id="cClients"></span></button>
+    <button id="tabCalls2" onclick="showCallLog()">Calls<span class="count" id="cToday"></span></button>
   </div>
   <div class="wrap" id="view"></div>
 </div>
@@ -437,6 +443,8 @@ let canSearchWeb = false;
 function setTab(which){
   document.getElementById("tabCalls").className  = which==="calls"   ? "on" : "";
   document.getElementById("tabClients").className= which==="clients" ? "on" : "";
+  const t3 = document.getElementById("tabCalls2");
+  if(t3) t3.className = which==="log" ? "on" : "";
 }
 
 const STATUS_LABEL = { new:"Not called", called:"Called", callback:"Call back",
@@ -451,6 +459,9 @@ async function showCallList(){
   canSearchWeb = !!d.canSearchWeb;
   const st = d.stats || {};
   $("#cCalls").textContent = st.new != null ? st.new : "";
+  api("/clients/api/calls/daily").then(r=>r.json()).then(x=>{
+    const el = document.getElementById("cToday"); if(el) el.textContent = x.today || 0;
+  }).catch(()=>{});
   renderCallList(st);
 }
 
@@ -616,12 +627,6 @@ function demoTextBody(p){
   return `Hey ${who} — Luke here. Give it a try: call ${num} and talk to it like you're a customer. It'll answer as ${p.businessName}.`;
 }
 
-function paymentTextBody(p){
-  const who = p.ownerName ? p.ownerName : "there";
-  const link = localStorage.getItem("stripeLink") || "";
-  return `Hey ${who} — Luke here, great talking with you. Here's the link to get set up: ${link}\n\nI'll get everything running today.`;
-}
-
 let demoState = { forId: null, live: false, number: "", foundSite: false };
 
 async function activateDemoFor(p, mountId){
@@ -631,8 +636,6 @@ async function activateDemoFor(p, mountId){
     const r = await api("/api/demo/activate", { method:"POST", body: JSON.stringify({
       businessName: p.businessName, ownerName: p.ownerName || "",
       website: p.website || "", trade: p.trade || "", city: p.city || "",
-      // so if they call the demo number an hour from now they still hear THEIR shop
-      prospectPhone: p.phone || "",
     })});
     const d = await r.json();
     if(btn) btn.disabled = false;
@@ -667,21 +670,6 @@ async function textDemoTo(p){
 function setDemoStatus(msg, color){
   const el = $("#demoStatus"); if(!el) return;
   el.style.color = color || "var(--muted)"; el.textContent = msg;
-}
-
-
-function paymentCardHTML(p){
-  const link = localStorage.getItem("stripeLink") || "";
-  if(!link){
-    return `<div class="payCard"><div class="t">Payment link</div>
-      <div style="font-size:14px;color:var(--muted);line-height:1.5">
-        No Stripe link saved yet. Paste it once in Step 6 of onboarding and it's remembered for every close from here on.</div></div>`;
-  }
-  return `<div class="payCard">
-    <div class="t">Send the payment link</div>
-    <a class="paylink" href="${smsLink(p.phone||"", paymentTextBody(p))}">💳 Text ${esc(p.businessName)} the payment link</a>
-    <div class="hint" style="margin-top:8px">Opens Messages with the link already written — sends from your number.</div>
-  </div>`;
 }
 
 function demoCardHTML(p){
@@ -765,13 +753,6 @@ function scriptBack(){
 }
 
 function renderScript(id, pushed){
-  if(!window.CALL_SCRIPT){
-    $("#view").innerHTML = `<div class="empty"><b>Call script didn't load.</b>
-      Hard-refresh the page (Cmd+Shift+R). If it keeps happening, the script file
-      failed to download.</div>
-      <button class="btn-ghost" style="width:100%;margin-top:12px" onclick="showCallList()">‹ Back to call list</button>`;
-    return;
-  }
   const n = window.CALL_SCRIPT[id];
   if(!n){ showProspect(scriptProspect.id); return; }
   if(!pushed && scriptStack[scriptStack.length-1] !== id) scriptStack.push(id);
@@ -784,7 +765,6 @@ function renderScript(id, pushed){
     : "";
   // Mount point for the live-demo controls (only on nodes flagged action:"demo")
   const demoBox = n.action === "demo" ? `<div id="demoMount"></div>` : "";
-  const payBox = (kind === "close") ? paymentCardHTML(scriptProspect) : "";
   const signals = (id==="dial" || id==="afterdemo")
     ? `<div class="signals"><div class="t">Buying signals — stop selling, close</div><ul style="margin:0;padding-left:16px">
         ${window.BUYING_SIGNALS.map(x=>`<li>${esc(x)}</li>`).join("")}</ul></div>` : "";
@@ -807,12 +787,59 @@ function renderScript(id, pushed){
       ${n.why?`<div class="why"><b>Why</b><span>${esc(fill(n.why))}</span></div>`:""}
     </div>
     ${demoBox}
-    ${payBox}
     ${next}
     ${opts?`<div class="theysay">${n.next?"Then":"What do they say? &nbsp;<em style=\"font-style:normal;opacity:.55;letter-spacing:0;text-transform:none\">most likely first</em>"}</div>${opts}`:""}
     ${signals}`;
   if(n.action==="demo") renderDemoCard(scriptProspect, "demoMount");
   window.scrollTo(0,0);
+}
+
+
+// ====================== CALL LOG ======================
+function fmtDay(key){
+  const [y,m,d] = key.split("-").map(Number);
+  const dt = new Date(y, m-1, d);
+  const today = new Date(); today.setHours(0,0,0,0);
+  const diff = Math.round((today - dt) / 864e5);
+  const label = dt.toLocaleDateString([], { weekday:"long", month:"short", day:"numeric" });
+  if(diff === 0) return "Today · " + label;
+  if(diff === 1) return "Yesterday · " + label;
+  return label;
+}
+
+async function showCallLog(){
+  setTab("log");
+
+  const r = await api("/clients/api/calls/daily");
+  if(r.status===401){ sessionStorage.removeItem("adminpw"); location.reload(); return; }
+  const d = await r.json();
+  const days = d.days || [];
+  const today = d.today || 0;
+  $("#cToday").textContent = today;
+
+  const now = new Date();
+  const todayLabel = now.toLocaleDateString([], { weekday:"long", month:"long", day:"numeric", year:"numeric" });
+
+  const total = days.reduce((a,x)=>a+x.calls,0);
+  const rows = days.length ? days.map(x=>`
+      <div class="dayrow ${fmtDay(x.date).startsWith("Today")?"isToday":""}">
+        <div>
+          <div class="d">${esc(fmtDay(x.date))}</div>
+          <div class="sub">${x.demos?x.demos+" demo"+(x.demos>1?"s":""):"&nbsp;"}</div>
+        </div>
+        <div class="c">${x.calls}</div>
+      </div>`).join("")
+    : `<div class="empty"><b>No calls logged yet.</b>Every call you submit on a prospect shows up here.</div>`;
+
+  $("#view").innerHTML = `
+    <div class="todayBig">
+      <div class="n">${today}</div>
+      <div class="lbl">Calls today</div>
+      <div class="dt">${esc(todayLabel)}</div>
+    </div>
+    <div class="toolbar"><h2>Every day</h2>
+      <span class="hint">${total} total</span></div>
+    ${rows}`;
 }
 
 // ---------- client list ----------
